@@ -32,6 +32,15 @@ volatile uint32_t msTicks; 						// Running count of milliseconds since start
 #define UART_TX_PIN 7
 #define UART_TX_IOCON IOCON_PIO1_7
 
+//PDM Pins
+#define MAIN_VOLTAGE_PORT 0 
+#define MAIN_VOLTAGE_PIN 1
+
+#define BATTERY_VOLTAGE_PORT 1
+#define BATTERY_VOLTAGE_PIN 1
+
+#define DC_DC_VOLTAGE_PORT 1
+#define DC_DC_VOLTAGE_PIN 2
 // -------------------------------------------------------------
 // Computed Macros
 

@@ -67,12 +67,23 @@ void CAN_error(uint32_t error_info) {
 	can_error_flag = true;
 }
 
+typedef struct {
+	bool low_voltage;
+	bool low_voltage_bus_battery;
+	bool low_voltage_dc_dc;
+	bool critical_systems_battery;
+	bool critical_systems_dc_dc;
+} PDM_status;
+
+
 // -------------------------------------------------------------
 // Interrupt Service Routines
 
 
 // -------------------------------------------------------------
 // Main Program Loop
+
+
 
 int main(void)
 {
@@ -88,6 +99,10 @@ int main(void)
 	// Initialize GPIO and LED as output
 	Board_LEDs_Init();
 	Board_LED_On(LED0);
+
+	//Initialize pins for pullup resistors
+	Chip_IOCON_PinMuxSet(LPC_IOCON, IOCON_PIO1_1, (IOCON_FUNC1 | IOCON_MODE_PULLUP | IOCON_DIGMODE_EN));
+	Chip_IOCON_PinMuxSet(LPC_IOCON, IOCON_PIO1_2, (IOCON_FUNC1 | IOCON_MODE_PULLUP | IOCON_DIGMODE_EN));
 
 	//---------------
 	// Initialize UART Communication
@@ -151,43 +166,33 @@ int main(void)
 
 	can_error_flag = false;
 	can_error_info = 0;
-
+	
+	PDM_status pdm_status;
+	
 	while (1) {
-		if (!RingBuffer_IsEmpty(&can_rx_buffer)) {
-			CCAN_MSG_OBJ_T temp_msg;
-			RingBuffer_Pop(&can_rx_buffer, &temp_msg);
-			Board_UART_Print("Received Message ID: 0x");
-			itoa(temp_msg.mode_id, str, 16);
-			Board_UART_Println(str);
-
-			Board_UART_Print("\t0x");
-			itoa(temp_msg.data_16[0], str, 16);
-			Board_UART_Println(str);
-
-		}	
-
-		if (can_error_flag) {
-			can_error_flag = false;
-			Board_UART_Print("CAN Error: 0b");
-			itoa(can_error_info, str, 2);
-			Board_UART_Println(str);
-		}
 
 		uint8_t count;
-		if ((count = Board_UART_Read(uart_rx_buffer, BUFFER_SIZE)) != 0) {
-			Board_UART_SendBlocking(uart_rx_buffer, count); // Echo user input
-			switch (uart_rx_buffer[0]) {
-				case 'a':
-					Board_UART_Println("Sending CAN with ID: 0x600");
-					msg_obj.msgobj = 2;
-					msg_obj.dlc = 2;
-					msg_obj.data_16[0] = 0xAABB;
-					LPC_CCAN_API->can_transmit(&msg_obj);
-					break;
-				default:
-					Board_UART_Println("Invalid Command");
-					break;
+
+		pdm_status.low_voltage = Chip_GPIO_GetPinState(LPC_GPIO, MAIN_VOLTAGE_PORT, MAIN_VOLTAGE_PIN);
+		pdm_status.low_voltage_bus_battery = Chip_GPIO_GetPinState(LPC_GPIO, BATTERY_VOLTAGE_PORT, BATTERY_VOLTAGE_PIN);
+		pdm_status.low_voltage_dc_dc = Chip_GPIO_GetPinState(LPC_GPIO, DC_DC_VOLTAGE_PORT, DC_DC_VOLTAGE_PIN);
+			
+		if(pdm_status.low_voltage){
+			if(pdm_status.low_voltage_bus_battery && pdm_status.low_voltage_dc_dc) {
+				Board_UART_Println("You're fucked because of battery and dc-dc :)");
+			}
+			else if(pdm_status.low_voltage_bus_battery) {
+				Board_UART_Println("You're fucked because of battery :)");
+			}
+			else if(pdm_status.low_voltage_dc_dc) {
+				Board_UART_Println("You're fucked because of dc-dc :)");
+			}
+			else {
+				Board_UART_Println("You're fucked and I have no idea why :)");
 			}
 		}
+		else {
+			Board_UART_Println("You're OK :(");
+		}	
 	}
 }

@@ -62,6 +62,7 @@ void Board_LEDs_Init(void);
 
 void Board_UART_Init(uint32_t baudrate);
 
+void Board_LV_Check_Init(void); //Low Voltage Check, Initialize Pins
 /**
  * Transmit the given string through the UART peripheral (blocking)
  * 

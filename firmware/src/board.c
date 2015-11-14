@@ -41,9 +41,6 @@ void Board_LEDs_Init(void) {
 void Board_UART_Init(uint32_t baudrate) {
 	Chip_IOCON_PinMuxSet(LPC_IOCON, UART_RX_IOCON, (IOCON_FUNC1 | IOCON_MODE_INACT));	// Rx pin
 	Chip_IOCON_PinMuxSet(LPC_IOCON, UART_TX_IOCON, (IOCON_FUNC1 | IOCON_MODE_INACT));	// Tx Pin
-
-	Chip_IOCON_PinMuxSet(LPC_IOCON, IOCON_PIO1_1, (IOCON_FUNC1 | IOCON_MODE_PULLUP | IOCON_DIGMODE_EN));  
-	Chip_IOCON_PinMuxSet(LPC_IOCON, IOCON_PIO1_2, (IOCON_FUNC1 | IOCON_MODE_PULLUP | IOCON_DIGMODE_EN)); 
 	
 	Chip_UART_Init(LPC_USART);
 	Chip_UART_SetBaud(LPC_USART, baudrate);
@@ -126,4 +123,9 @@ void Board_CAN_Init(uint32_t baudrate, void (*rx_callback)(uint8_t), void (*tx_c
 
 	/* Enable the CAN Interrupt */
 	NVIC_EnableIRQ(CAN_IRQn);
+}
+
+void Board_LV_Check_Init(void){
+	Chip_IOCON_PinMuxSet(LPC_IOCON, IOCON_PIO1_1, (IOCON_FUNC1 | IOCON_MODE_PULLUP | IOCON_DIGMODE_EN));
+        Chip_IOCON_PinMuxSet(LPC_IOCON, IOCON_PIO1_2, (IOCON_FUNC1 | IOCON_MODE_PULLUP | IOCON_DIGMODE_EN));
 }

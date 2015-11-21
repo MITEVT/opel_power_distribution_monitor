@@ -13,6 +13,8 @@
 
 extern volatile uint32_t msTicks;
 
+static uint32_t lastPrint;
+
 static CCAN_MSG_OBJ_T msg_obj; 					// Message Object data structure for manipulating CAN messages
 static RINGBUFF_T can_rx_buffer;				// Ring Buffer for storing received CAN messages
 static CCAN_MSG_OBJ_T _rx_buffer[BUFFER_SIZE]; 	// Underlying array used in ring buffer
@@ -67,13 +69,7 @@ void CAN_error(uint32_t error_info) {
 	can_error_flag = true;
 }
 
-typedef struct {
-	bool low_voltage;
-	bool low_voltage_bus_battery;
-	bool low_voltage_dc_dc;
-	bool critical_systems_battery;
-	bool critical_systems_dc_dc;
-} PDM_status;
+
 
 
 // -------------------------------------------------------------
@@ -167,32 +163,23 @@ int main(void)
 	can_error_flag = false;
 	can_error_info = 0;
 	
-	PDM_status pdm_status;
+	lastPrint = msTicks;	
+
+	PDM_STATUS_T pdm_status;
 	
 	while (1) {
+		Board_LV_Status_Update(&pdm_status);
 
-		uint8_t count;
+		if(msTicks - lastPrint > 450){					// 10 times per second
+			lastPrint = msTicks;					// Store the current time, to allow the process to be done in another 1/5 second
 
-		pdm_status.low_voltage = Chip_GPIO_GetPinState(LPC_GPIO, MAIN_VOLTAGE_PORT, MAIN_VOLTAGE_PIN);
-		pdm_status.low_voltage_bus_battery = Chip_GPIO_GetPinState(LPC_GPIO, BATTERY_VOLTAGE_PORT, BATTERY_VOLTAGE_PIN);
-		pdm_status.low_voltage_dc_dc = Chip_GPIO_GetPinState(LPC_GPIO, DC_DC_VOLTAGE_PORT, DC_DC_VOLTAGE_PIN);
-			
-		if(pdm_status.low_voltage){
-			if(pdm_status.low_voltage_bus_battery && pdm_status.low_voltage_dc_dc) {
-				Board_UART_Println("You're fucked because of battery and dc-dc :)");
-			}
-			else if(pdm_status.low_voltage_bus_battery) {
-				Board_UART_Println("You're fucked because of battery :)");
-			}
-			else if(pdm_status.low_voltage_dc_dc) {
-				Board_UART_Println("You're fucked because of dc-dc :)");
-			}
-			else {
-				Board_UART_Println("You're fucked and I have no idea why :)");
-			}
+			msg_obj.msgobj = 0;
+			msg_obj.mode_id = 0x550;
+			msg_obj.dlc = 2;
+			msg_obj.data[0] = pdm_status.low_voltage * 0xFF;	//send 1111111 if low voltage, 00000000 otherwise
+			msg_obj.data[1] = (pdm_status.low_voltage_bus_battery * 0x01) | (pdm_status.low_voltage_dc_dc * 0x02);
+
+			LPC_CCAN_API->can_transmit(&msg_obj);
 		}
-		else {
-			Board_UART_Println("You're OK :(");
-		}	
 	}
 }

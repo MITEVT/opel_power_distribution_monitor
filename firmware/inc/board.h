@@ -14,6 +14,13 @@ volatile uint32_t msTicks; 						// Running count of milliseconds since start
 // -------------------------------------------------------------
 // Configuration Macros
 
+typedef struct {
+	bool low_voltage;
+	bool low_voltage_bus_battery;
+	bool low_voltage_dc_dc;
+	bool critical_systems_battery;
+	bool critical_systems_dc_dc;
+} PDM_STATUS_T;
 
 // -------------------------------------------------------------
 // Pin Descriptions
@@ -63,6 +70,9 @@ void Board_LEDs_Init(void);
 void Board_UART_Init(uint32_t baudrate);
 
 void Board_LV_Check_Init(void); //Low Voltage Check, Initialize Pins
+
+void Board_LV_Status_Update(PDM_STATUS_T * pdm_status);
+
 /**
  * Transmit the given string through the UART peripheral (blocking)
  * 

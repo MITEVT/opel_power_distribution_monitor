@@ -125,6 +125,12 @@ void Board_CAN_Init(uint32_t baudrate, void (*rx_callback)(uint8_t), void (*tx_c
 	NVIC_EnableIRQ(CAN_IRQn);
 }
 
+void Board_LV_Status_Update(PDM_STATUS_T * pdm_status) {
+	pdm_status->low_voltage = Chip_GPIO_GetPinState(LPC_GPIO, MAIN_VOLTAGE_PORT, MAIN_VOLTAGE_PIN);
+	pdm_status->low_voltage_bus_battery = Chip_GPIO_GetPinState(LPC_GPIO, BATTERY_VOLTAGE_PORT, BATTERY_VOLTAGE_PIN);
+	pdm_status->low_voltage_dc_dc = Chip_GPIO_GetPinState(LPC_GPIO, DC_DC_VOLTAGE_PORT, DC_DC_VOLTAGE_PIN);
+}
+
 void Board_LV_Check_Init(void){
 	Chip_IOCON_PinMuxSet(LPC_IOCON, IOCON_PIO1_1, (IOCON_FUNC1 | IOCON_MODE_PULLUP | IOCON_DIGMODE_EN));
         Chip_IOCON_PinMuxSet(LPC_IOCON, IOCON_PIO1_2, (IOCON_FUNC1 | IOCON_MODE_PULLUP | IOCON_DIGMODE_EN));

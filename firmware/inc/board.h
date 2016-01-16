@@ -26,7 +26,7 @@ typedef struct {
 // Pin Descriptions
 
 #define LED0_PORT 2
-#define LED0_PIN 10
+#define LED0_PIN 5
 
 #define LED1_PORT 0
 #define LED1_PIN 6
@@ -48,6 +48,15 @@ typedef struct {
 
 #define DC_DC_VOLTAGE_PORT 1
 #define DC_DC_VOLTAGE_PIN 2
+
+//I2C
+#define DEFAULT_I2C I2C0
+#define I2C_FASTPLUS_BIT 0
+
+#define SPEED_100KHZ 100000
+#define I2C_DEFAULT_SPEED SPEED_100KHZ
+
+#define I2C_SLAVE_ADDRESS 0x64
 // -------------------------------------------------------------
 // Computed Macros
 
@@ -72,6 +81,8 @@ void Board_UART_Init(uint32_t baudrate);
 void Board_LV_Check_Init(void); //Low Voltage Check, Initialize Pins
 
 void Board_LV_Status_Update(PDM_STATUS_T * pdm_status);
+
+void Board_I2C_Init(void);
 
 /**
  * Transmit the given string through the UART peripheral (blocking)

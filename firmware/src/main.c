@@ -25,6 +25,11 @@ static uint8_t uart_rx_buffer[BUFFER_SIZE]; 	// UART received message buffer
 static bool can_error_flag;
 static uint32_t can_error_info;
 
+static uint8_t i2c_tx_buffer[2];
+static uint8_t i2c_rx_buffer[2];
+
+static I2C_ID_T i2c_curr_id = DEFAULT_I2C;
+
 // -------------------------------------------------------------
 // Helper Functions
 
@@ -97,8 +102,10 @@ int main(void)
 	Board_LED_On(LED0);
 
 	//Initialize pins for pullup resistors
-	Chip_IOCON_PinMuxSet(LPC_IOCON, IOCON_PIO1_1, (IOCON_FUNC1 | IOCON_MODE_PULLUP | IOCON_DIGMODE_EN));
-	Chip_IOCON_PinMuxSet(LPC_IOCON, IOCON_PIO1_2, (IOCON_FUNC1 | IOCON_MODE_PULLUP | IOCON_DIGMODE_EN));
+	Board_LV_Check_Init();
+
+	//Initialize I2C
+	Board_I2C_Init();
 
 	//---------------
 	// Initialize UART Communication
@@ -167,8 +174,14 @@ int main(void)
 
 	PDM_STATUS_T pdm_status;
 	
+	int tmp;
+	i2c_tx_buffer[0] = 0x01;
+	i2c_tx_buffer[1] = 0xF8;
+	tmp = Chip_I2C_MasterSend(i2c_curr_id, I2C_SLAVE_ADDRESS, i2c_tx_buffer, 2);
+	Board_UART_Print("Hello World");
+
 	while (1) {
-		Board_LV_Status_Update(&pdm_status);
+		/*Board_LV_Status_Update(&pdm_status);
 
 		if(msTicks - lastPrint > 450){					// 10 times per second
 			lastPrint = msTicks;					// Store the current time, to allow the process to be done in another 1/5 second
@@ -179,7 +192,9 @@ int main(void)
 			msg_obj.data[0] = pdm_status.low_voltage * 0xFF;	//send 1111111 if low voltage, 00000000 otherwise
 			msg_obj.data[1] = (pdm_status.low_voltage_bus_battery * 0x01) | (pdm_status.low_voltage_dc_dc * 0x02);
 
-			LPC_CCAN_API->can_transmit(&msg_obj);
-		}
+			LPC_CCAN_API->can_transmit(&msg_obj); */
+		tmp = Chip_I2C_MasterCmdRead(i2c_curr_id, I2C_SLAVE_ADDRESS, 0x0E, i2c_rx_buffer, 1);
+		tmp = i2c_rx_buffer[0];
+		Board_UART_PrintNum(tmp, 10, true);
 	}
 }

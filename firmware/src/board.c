@@ -125,6 +125,14 @@ void Board_CAN_Init(uint32_t baudrate, void (*rx_callback)(uint8_t), void (*tx_c
 	NVIC_EnableIRQ(CAN_IRQn);
 }
 
+void Board_I2C_Init(void){
+	Chip_IOCON_PinMuxSet(LPC_IOCON, IOCON_PIO0_4, (IOCON_FUNC1 | I2C_FASTPLUS_BIT));
+        Chip_IOCON_PinMuxSet(LPC_IOCON, IOCON_PIO0_5, (IOCON_FUNC1 | I2C_FASTPLUS_BIT));
+
+	Chip_I2C_Init(DEFAULT_I2C);
+	Chip_I2C_SetClockRate(DEFAULT_I2C, I2C_DEFAULT_SPEED);	
+}
+
 void Board_LV_Status_Update(PDM_STATUS_T * pdm_status) {
 	pdm_status->low_voltage = Chip_GPIO_GetPinState(LPC_GPIO, MAIN_VOLTAGE_PORT, MAIN_VOLTAGE_PIN);
 	pdm_status->low_voltage_bus_battery = Chip_GPIO_GetPinState(LPC_GPIO, BATTERY_VOLTAGE_PORT, BATTERY_VOLTAGE_PIN);

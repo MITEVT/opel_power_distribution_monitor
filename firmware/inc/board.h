@@ -15,9 +15,10 @@ volatile uint32_t msTicks; 						// Running count of milliseconds since start
 // Configuration Macros
 
 typedef struct {
-	bool low_voltage;
+	bool low_voltage_status;
 	bool low_voltage_bus_battery;
 	bool low_voltage_dc_dc;
+	bool critical_systems_status;
 	bool critical_systems_battery;
 	bool critical_systems_dc_dc;
 } PDM_STATUS_T;

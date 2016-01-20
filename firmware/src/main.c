@@ -188,9 +188,8 @@ int main(void)
 
 			msg_obj.msgobj = 0;
 			msg_obj.mode_id = 0x550;
-			msg_obj.dlc = 2;
-			msg_obj.data[0] = pdm_status.low_voltage * 0xFF;	//send 1111111 if low voltage, 00000000 otherwise
-			msg_obj.data[1] = (pdm_status.low_voltage_bus_battery * 0x01) | (pdm_status.low_voltage_dc_dc * 0x02);
+			msg_obj.dlc = 1;
+			msg_obj.data[0] = pdm_status.low_voltage_status * 0x01 | low_voltage_bus_battery * 0x02 | low_voltage_dc_dc * 0x04 | critical_systems_status * 0x08 | critical_systems_bus_battery * 0x10 | critical_systems_dc_dc * 0x20;
 
 			LPC_CCAN_API->can_transmit(&msg_obj); */
 		tmp = Chip_I2C_MasterCmdRead(i2c_curr_id, I2C_SLAVE_ADDRESS, 0x0E, i2c_rx_buffer, 1);

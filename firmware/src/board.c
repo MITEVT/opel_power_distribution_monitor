@@ -134,9 +134,13 @@ void Board_I2C_Init(void){
 }
 
 void Board_LV_Status_Update(PDM_STATUS_T * pdm_status) {
-	pdm_status->low_voltage = Chip_GPIO_GetPinState(LPC_GPIO, MAIN_VOLTAGE_PORT, MAIN_VOLTAGE_PIN);
-	pdm_status->low_voltage_bus_battery = Chip_GPIO_GetPinState(LPC_GPIO, BATTERY_VOLTAGE_PORT, BATTERY_VOLTAGE_PIN);
-	pdm_status->low_voltage_dc_dc = Chip_GPIO_GetPinState(LPC_GPIO, DC_DC_VOLTAGE_PORT, DC_DC_VOLTAGE_PIN);
+	pdm_status->low_voltage_bus_battery = Chip_GPIO_GetPinState(LPC_GPIO, BATTERY_VOLTAGE_PORT, BATTERY_VOLTAGE_PIN); //TODO
+	pdm_status->low_voltage_dc_dc = Chip_GPIO_GetPinState(LPC_GPIO, DC_DC_VOLTAGE_PORT, DC_DC_VOLTAGE_PIN); //TODO
+	pdm_status->low_voltage_status = low_voltage_bus_battery || low_voltage_dc_dc;
+
+	pdm_status->critical_systems_bus_battery = Chip_GPIO_GetPinState(LPC_GPIO, BATTERY_VOLTAGE_PORT, BATTERY_VOLTAGE_PIN); //TODO
+	pdm_status->critical_systems_dc_dc = Chip_GPIO_GetPinState(LPC_GPIO, DC_DC_VOLTAGE_PORT, DC_DC_VOLTAGE_PIN); //TODO
+	pdm_status->critical_systems_status = critical_systems_bus_battery || critical_systems_dc_dc;
 }
 
 void Board_LV_Check_Init(void){

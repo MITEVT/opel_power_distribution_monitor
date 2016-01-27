@@ -25,10 +25,8 @@ static uint8_t uart_rx_buffer[BUFFER_SIZE]; 	// UART received message buffer
 static bool can_error_flag;
 static uint32_t can_error_info;
 
-static uint8_t i2c_tx_buffer[2];
-static uint8_t i2c_rx_buffer[2];
-
-static I2C_ID_T i2c_curr_id = DEFAULT_I2C;
+static uint8_t i2c_tx_buffer[20];
+static uint8_t i2c_rx_buffer[20];
 
 // -------------------------------------------------------------
 // Helper Functions
@@ -175,10 +173,12 @@ int main(void)
 	PDM_STATUS_T pdm_status;
 	
 	int tmp;
+	uint32_t battery_voltage_mVolts;
 	i2c_tx_buffer[0] = 0x01;
 	i2c_tx_buffer[1] = 0xF8;
-	tmp = Chip_I2C_MasterSend(i2c_curr_id, I2C_SLAVE_ADDRESS, i2c_tx_buffer, 2);
-	Board_UART_Print("Hello World");
+	tmp = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_SLAVE_ADDRESS, i2c_tx_buffer, 2);
+	Board_UART_Print("Hello World: ");
+	Board_UART_PrintNum(tmp, 10, true);
 
 	while (1) {
 		/*Board_LV_Status_Update(&pdm_status);
@@ -192,8 +192,18 @@ int main(void)
 			msg_obj.data[0] = pdm_status.low_voltage_status * 0x01 | low_voltage_bus_battery * 0x02 | low_voltage_dc_dc * 0x04 | critical_systems_status * 0x08 | critical_systems_bus_battery * 0x10 | critical_systems_dc_dc * 0x20;
 
 			LPC_CCAN_API->can_transmit(&msg_obj); */
-		tmp = Chip_I2C_MasterCmdRead(i2c_curr_id, I2C_SLAVE_ADDRESS, 0x0E, i2c_rx_buffer, 1);
-		tmp = i2c_rx_buffer[0];
+		tmp = Chip_I2C_MasterCmdRead(DEFAULT_I2C, I2C_SLAVE_ADDRESS, 0x08, i2c_rx_buffer, 2);
+		//voltage = i2c_rx_buffer[0];
+		
+		//tmp = Chip_I2C_MasterCmdRead(DEFAULT_I2C, I2C_SLAVE_ADDRESS, 0x09, i2c_rx_buffer, 1);
+		battery_voltage_mVolts = ((uint16_t)i2c_rx_buffer[0] << 8) | (uint16_t)i2c_rx_buffer[1];
+		//Board_UART_Print("test voltage: ");
+		//Board_UART_PrintNum(battery_voltage_mVolts, 10, true);
+
+		battery_voltage_mVolts = 23600*battery_voltage_mVolts/0xFFFF;
+		Board_UART_Print("Data (mV): ");
+		Board_UART_PrintNum(battery_voltage_mVolts, 10, false);
+		Board_UART_Print(" Length: ");
 		Board_UART_PrintNum(tmp, 10, true);
 	}
 }

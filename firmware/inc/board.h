@@ -19,7 +19,7 @@ typedef struct {
 	bool low_voltage_bus_battery;
 	bool low_voltage_dc_dc;
 	bool critical_systems_status;
-	bool critical_systems_battery;
+	bool critical_systems_bus_battery;
 	bool critical_systems_dc_dc;
 } PDM_STATUS_T;
 

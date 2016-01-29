@@ -173,7 +173,8 @@ int main(void)
 	PDM_STATUS_T pdm_status;
 	
 	int tmp;
-	uint32_t battery_voltage_mVolts;
+	uint32_t cs_battery_voltage_mVolts, cs_battery_charge_percent;
+	int32_t cs_battery_current_mAmps;
 	i2c_tx_buffer[0] = 0x01;
 	i2c_tx_buffer[1] = 0xF8;
 	tmp = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_SLAVE_ADDRESS, i2c_tx_buffer, 2);
@@ -181,29 +182,48 @@ int main(void)
 	Board_UART_PrintNum(tmp, 10, true);
 
 	while (1) {
-		/*Board_LV_Status_Update(&pdm_status);
+		//Board_LV_Status_Update(&pdm_status);
 
-		if(msTicks - lastPrint > 450){					// 10 times per second
+		if(msTicks - lastPrint > 2500){					// 10 times per second
 			lastPrint = msTicks;					// Store the current time, to allow the process to be done in another 1/5 second
-
+			/*
 			msg_obj.msgobj = 0;
 			msg_obj.mode_id = 0x550;
 			msg_obj.dlc = 1;
 			msg_obj.data[0] = pdm_status.low_voltage_status * 0x01 | low_voltage_bus_battery * 0x02 | low_voltage_dc_dc * 0x04 | critical_systems_status * 0x08 | critical_systems_bus_battery * 0x10 | critical_systems_dc_dc * 0x20;
 
 			LPC_CCAN_API->can_transmit(&msg_obj); */
-		tmp = Chip_I2C_MasterCmdRead(DEFAULT_I2C, I2C_SLAVE_ADDRESS, 0x08, i2c_rx_buffer, 2);
-		//voltage = i2c_rx_buffer[0];
-		
-		//tmp = Chip_I2C_MasterCmdRead(DEFAULT_I2C, I2C_SLAVE_ADDRESS, 0x09, i2c_rx_buffer, 1);
-		battery_voltage_mVolts = ((uint16_t)i2c_rx_buffer[0] << 8) | (uint16_t)i2c_rx_buffer[1];
-		//Board_UART_Print("test voltage: ");
-		//Board_UART_PrintNum(battery_voltage_mVolts, 10, true);
 
-		battery_voltage_mVolts = 23600*battery_voltage_mVolts/0xFFFF;
-		Board_UART_Print("Data (mV): ");
-		Board_UART_PrintNum(battery_voltage_mVolts, 10, false);
-		Board_UART_Print(" Length: ");
-		Board_UART_PrintNum(tmp, 10, true);
+			tmp = Chip_I2C_MasterCmdRead(DEFAULT_I2C, I2C_SLAVE_ADDRESS, 0x08, i2c_rx_buffer, 2);
+			cs_battery_voltage_mVolts = ((uint16_t)i2c_rx_buffer[0] << 8) | (uint16_t)i2c_rx_buffer[1];
+			cs_battery_voltage_mVolts = 23600*cs_battery_voltage_mVolts/0xFFFF;
+			Board_UART_Print("Voltage Data (mV): ");
+			Board_UART_PrintNum(cs_battery_voltage_mVolts, 10, false);
+			Board_UART_Print(" Length: ");
+			Board_UART_PrintNum(tmp, 10, true);
+
+			tmp = Chip_I2C_MasterCmdRead(DEFAULT_I2C, I2C_SLAVE_ADDRESS, 0x02, i2c_rx_buffer, 2);
+			cs_battery_charge_percent = ((uint16_t)i2c_rx_buffer[0] << 8) | (uint16_t)i2c_rx_buffer[1];
+			cs_battery_charge_percent = 100*cs_battery_charge_percent/0xFFFF;
+			Board_UART_Print("Accumulated Charge Data (C): ");
+			Board_UART_PrintNum(cs_battery_charge_percent, 10, false);
+			Board_UART_Print(" Length: ");
+			Board_UART_PrintNum(tmp, 10, true);
+
+			tmp = Chip_I2C_MasterCmdRead(DEFAULT_I2C, I2C_SLAVE_ADDRESS, 0x0E, i2c_rx_buffer, 2);
+			cs_battery_current_mAmps = ((uint16_t)i2c_rx_buffer[0] << 8) | (uint16_t)i2c_rx_buffer[1];
+			cs_battery_current_mAmps = 60*(cs_battery_current_mAmps-0x7FFF)*1000/(50*0x7FFF);
+			
+			Board_UART_Print("Current Data (mA): ");
+			if(cs_battery_current_mAmps < 0) {
+				cs_battery_current_mAmps = cs_battery_current_mAmps * -1;
+				Board_UART_Print("-");
+			}
+			Board_UART_PrintNum(cs_battery_current_mAmps, 10, false);
+			Board_UART_Print(" Length: ");
+			Board_UART_PrintNum(tmp, 10, true); 
+			
+			Board_UART_Println("");
+		}
 	}
 }

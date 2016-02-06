@@ -15,10 +15,8 @@ volatile uint32_t msTicks; 						// Running count of milliseconds since start
 // Configuration Macros
 
 typedef struct {
-	bool low_voltage_status;
 	bool low_voltage_bus_battery;
 	bool low_voltage_dc_dc;
-	bool critical_systems_status;
 	bool critical_systems_bus_battery;
 	bool critical_systems_dc_dc;
 } PDM_STATUS_T;
@@ -40,24 +38,14 @@ typedef struct {
 #define UART_TX_PIN 7
 #define UART_TX_IOCON IOCON_PIO1_7
 
-//PDM Pins
-#define MAIN_VOLTAGE_PORT 0 
-#define MAIN_VOLTAGE_PIN 1
-
-#define BATTERY_VOLTAGE_PORT 1
-#define BATTERY_VOLTAGE_PIN 1
-
-#define DC_DC_VOLTAGE_PORT 1
-#define DC_DC_VOLTAGE_PIN 2
+//PDM
+#define LOW_VOLTAGE_THRESHHOLD 10000
 
 //I2C
 #define DEFAULT_I2C I2C0
-#define I2C_FASTPLUS_BIT 0
-
 #define SPEED_100KHZ 100000
-#define I2C_DEFAULT_SPEED SPEED_100KHZ
-
 #define I2C_SLAVE_ADDRESS 0x64
+#define I2C_MULTIPLEXER_ADDRESS 0x70
 // -------------------------------------------------------------
 // Computed Macros
 
@@ -67,8 +55,8 @@ typedef struct {
 #define UART_RX UART_RX_PORT, UART_RX_PIN
 #define UART_TX UART_TX_PORT, UART_TX_PIN
 
-#define Board_LED_On(led) Chip_GPIO_SetPinState(LPC_GPIO, led, true)
-#define Board_LED_Off(led) Chip_GPIO_SetPinState(LPC_GPIO, led, false)
+#define Board_LED_On(led) {Chip_GPIO_SetPinState(LPC_GPIO, led, true);}
+#define Board_LED_Off(led) {Chip_GPIO_SetPinState(LPC_GPIO, led, false);}
  
 // -------------------------------------------------------------
 // Board Level Function Prototypes
@@ -79,11 +67,9 @@ void Board_LEDs_Init(void);
 
 void Board_UART_Init(uint32_t baudrate);
 
-void Board_LV_Check_Init(void); //Low Voltage Check, Initialize Pins
-
-void Board_LV_Status_Update(PDM_STATUS_T * pdm_status);
-
 void Board_I2C_Init(void);
+
+void Board_PDM_Status_Update(PDM_STATUS_T *pdm_status, uint8_t *i2c_rx_buffer, bool cs);
 
 /**
  * Transmit the given string through the UART peripheral (blocking)

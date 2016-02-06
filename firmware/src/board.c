@@ -48,6 +48,7 @@ int8_t Board_SysTick_Init(void) {
 void Board_LEDs_Init(void) {
 	Chip_GPIO_Init(LPC_GPIO);
 	Chip_GPIO_WriteDirBit(LPC_GPIO, LED0, true);
+	Chip_GPIO_WriteDirBit(LPC_GPIO, LED1, true);
 }
 
 void Board_UART_Init(uint32_t baudrate) {
@@ -143,22 +144,56 @@ void Board_I2C_Init(void){
         Chip_IOCON_PinMuxSet(LPC_IOCON, IOCON_PIO0_5, (IOCON_FUNC1));
 	Chip_SYSCTL_DeassertPeriphReset(RESET_I2C0);
 	Chip_I2C_Init(DEFAULT_I2C);
-	Chip_I2C_SetClockRate(DEFAULT_I2C, I2C_DEFAULT_SPEED);
+	Chip_I2C_SetClockRate(DEFAULT_I2C, SPEED_100KHZ);
 	Chip_I2C_SetMasterEventHandler(DEFAULT_I2C, Chip_I2C_EventHandler);
 	NVIC_EnableIRQ(I2C0_IRQn);	
 }
 
-void Board_LV_Status_Update(PDM_STATUS_T * pdm_status) {
-	/*pdm_status->low_voltage_bus_battery = Chip_GPIO_GetPinState(LPC_GPIO, BATTERY_VOLTAGE_PORT, BATTERY_VOLTAGE_PIN); //TODO
-	pdm_status->low_voltage_dc_dc = Chip_GPIO_GetPinState(LPC_GPIO, DC_DC_VOLTAGE_PORT, DC_DC_VOLTAGE_PIN); //TODO
-	pdm_status->low_voltage_status = low_voltage_bus_battery || low_voltage_dc_dc;
+void Board_PDM_Status_Update(PDM_STATUS_T *pdm_status, uint8_t *i2c_rx_buffer, bool cs) {
+	int tmp;
+	uint32_t cs_battery_voltage_mVolts, cs_battery_charge_percent;
+	int32_t cs_battery_current_mAmps;
 
-	pdm_status->critical_systems_bus_battery = Chip_GPIO_GetPinState(LPC_GPIO, BATTERY_VOLTAGE_PORT, BATTERY_VOLTAGE_PIN); //TODO
-	pdm_status->critical_systems_dc_dc = Chip_GPIO_GetPinState(LPC_GPIO, DC_DC_VOLTAGE_PORT, DC_DC_VOLTAGE_PIN); //TODO
-	pdm_status->critical_systems_status = critical_systems_bus_battery || critical_systems_dc_dc;*/
-}
+	tmp = Chip_I2C_MasterCmdRead(DEFAULT_I2C, I2C_SLAVE_ADDRESS, 0x08, i2c_rx_buffer, 2);
+	cs_battery_voltage_mVolts = ((uint16_t)i2c_rx_buffer[0] << 8) | (uint16_t)i2c_rx_buffer[1];
+	cs_battery_voltage_mVolts = 23600*cs_battery_voltage_mVolts/0xFFFF;
+	Board_UART_Print("Voltage Data (mV): ");
+	Board_UART_PrintNum(cs_battery_voltage_mVolts, 10, false);
+	Board_UART_Print(" Length: ");
+	Board_UART_PrintNum(tmp, 10, true);
 
-void Board_LV_Check_Init(void){
-	Chip_IOCON_PinMuxSet(LPC_IOCON, IOCON_PIO1_1, (IOCON_FUNC1 | IOCON_MODE_PULLUP | IOCON_DIGMODE_EN));
-        Chip_IOCON_PinMuxSet(LPC_IOCON, IOCON_PIO1_2, (IOCON_FUNC1 | IOCON_MODE_PULLUP | IOCON_DIGMODE_EN));
+	tmp = Chip_I2C_MasterCmdRead(DEFAULT_I2C, I2C_SLAVE_ADDRESS, 0x02, i2c_rx_buffer, 2);
+	cs_battery_charge_percent = ((uint16_t)i2c_rx_buffer[0] << 8) | (uint16_t)i2c_rx_buffer[1];
+	cs_battery_charge_percent = 100*cs_battery_charge_percent/0xFFFF;
+	Board_UART_Print("Accumulated Charge Data (%): ");
+	Board_UART_PrintNum(cs_battery_charge_percent, 10, false);
+	Board_UART_Print(" Length: ");
+	Board_UART_PrintNum(tmp, 10, true);
+
+	tmp = Chip_I2C_MasterCmdRead(DEFAULT_I2C, I2C_SLAVE_ADDRESS, 0x0E, i2c_rx_buffer, 2);
+	cs_battery_current_mAmps = ((uint16_t)i2c_rx_buffer[0] << 8) | (uint16_t)i2c_rx_buffer[1];
+	cs_battery_current_mAmps = 60*(cs_battery_current_mAmps-0x7FFF)*1000/(50*0x7FFF);
+	
+	Board_UART_Print("Current Data (mA): ");
+	if(cs_battery_current_mAmps < 0) {
+		cs_battery_current_mAmps = cs_battery_current_mAmps * -1;
+		Board_UART_Print("-");
+	}
+	Board_UART_PrintNum(cs_battery_current_mAmps, 10, false);
+	Board_UART_Print(" Length: ");
+	Board_UART_PrintNum(tmp, 10, true); 
+			
+
+	if(cs) {
+		pdm_status->critical_systems_bus_battery = cs_battery_voltage_mVolts < LOW_VOLTAGE_THRESHHOLD;
+		pdm_status->critical_systems_dc_dc = cs_battery_current_mAmps >= 0;
+		Board_UART_Println("Critical Systems Check");
+		Board_UART_Println("");
+	}
+	else {
+		pdm_status->low_voltage_bus_battery = cs_battery_voltage_mVolts < LOW_VOLTAGE_THRESHHOLD;
+		pdm_status->low_voltage_dc_dc = cs_battery_current_mAmps >= 0;
+		Board_UART_Println("Low Voltage Systems Check");
+		Board_UART_Println("");
+	}
 }

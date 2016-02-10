@@ -151,48 +151,48 @@ void Board_I2C_Init(void){
 
 void Board_PDM_Status_Update(PDM_STATUS_T *pdm_status, uint8_t *i2c_rx_buffer, bool cs) {
 	int tmp;
-	uint32_t cs_battery_voltage_mVolts, cs_battery_charge_percent;
-	int32_t cs_battery_current_mAmps;
+	uint32_t battery_voltage_mVolts, battery_charge_percent;
+	int32_t battery_current_mAmps;
 
 	tmp = Chip_I2C_MasterCmdRead(DEFAULT_I2C, I2C_SLAVE_ADDRESS, 0x08, i2c_rx_buffer, 2);
-	cs_battery_voltage_mVolts = ((uint16_t)i2c_rx_buffer[0] << 8) | (uint16_t)i2c_rx_buffer[1];
-	cs_battery_voltage_mVolts = 23600*cs_battery_voltage_mVolts/0xFFFF;
+	battery_voltage_mVolts = ((uint16_t)i2c_rx_buffer[0] << 8) | (uint16_t)i2c_rx_buffer[1];
+	battery_voltage_mVolts = 23600*battery_voltage_mVolts/0xFFFF;
 	Board_UART_Print("Voltage Data (mV): ");
-	Board_UART_PrintNum(cs_battery_voltage_mVolts, 10, false);
+	Board_UART_PrintNum(battery_voltage_mVolts, 10, false);
 	Board_UART_Print(" Length: ");
 	Board_UART_PrintNum(tmp, 10, true);
 
 	tmp = Chip_I2C_MasterCmdRead(DEFAULT_I2C, I2C_SLAVE_ADDRESS, 0x02, i2c_rx_buffer, 2);
-	cs_battery_charge_percent = ((uint16_t)i2c_rx_buffer[0] << 8) | (uint16_t)i2c_rx_buffer[1];
-	cs_battery_charge_percent = 100*cs_battery_charge_percent/0xFFFF;
+	battery_charge_percent = ((uint16_t)i2c_rx_buffer[0] << 8) | (uint16_t)i2c_rx_buffer[1];
+	battery_charge_percent = 100*battery_charge_percent/0xFFFF;
 	Board_UART_Print("Accumulated Charge Data (%): ");
-	Board_UART_PrintNum(cs_battery_charge_percent, 10, false);
+	Board_UART_PrintNum(battery_charge_percent, 10, false);
 	Board_UART_Print(" Length: ");
 	Board_UART_PrintNum(tmp, 10, true);
 
 	tmp = Chip_I2C_MasterCmdRead(DEFAULT_I2C, I2C_SLAVE_ADDRESS, 0x0E, i2c_rx_buffer, 2);
-	cs_battery_current_mAmps = ((uint16_t)i2c_rx_buffer[0] << 8) | (uint16_t)i2c_rx_buffer[1];
-	cs_battery_current_mAmps = 60*(cs_battery_current_mAmps-0x7FFF)*1000/(50*0x7FFF);
+	battery_current_mAmps = ((uint16_t)i2c_rx_buffer[0] << 8) | (uint16_t)i2c_rx_buffer[1];
+	battery_current_mAmps = 60*(battery_current_mAmps-0x7FFF)*1000/(50*0x7FFF);
 	
 	Board_UART_Print("Current Data (mA): ");
-	if(cs_battery_current_mAmps < 0) {
-		cs_battery_current_mAmps = cs_battery_current_mAmps * -1;
+	if(battery_current_mAmps < 0) {
+		battery_current_mAmps = battery_current_mAmps * -1;
 		Board_UART_Print("-");
 	}
-	Board_UART_PrintNum(cs_battery_current_mAmps, 10, false);
+	Board_UART_PrintNum(battery_current_mAmps, 10, false);
 	Board_UART_Print(" Length: ");
 	Board_UART_PrintNum(tmp, 10, true); 
 			
 
 	if(cs) {
-		pdm_status->critical_systems_bus_battery = cs_battery_voltage_mVolts < LOW_VOLTAGE_THRESHHOLD;
-		pdm_status->critical_systems_dc_dc = cs_battery_current_mAmps >= 0;
+		pdm_status->critical_systems_bus_battery = battery_voltage_mVolts < LOW_VOLTAGE_THRESHHOLD;
+		pdm_status->critical_systems_dc_dc = battery_current_mAmps >= 0;
 		Board_UART_Println("Critical Systems Check");
 		Board_UART_Println("");
 	}
 	else {
-		pdm_status->low_voltage_bus_battery = cs_battery_voltage_mVolts < LOW_VOLTAGE_THRESHHOLD;
-		pdm_status->low_voltage_dc_dc = cs_battery_current_mAmps >= 0;
+		pdm_status->low_voltage_bus_battery = battery_voltage_mVolts < LOW_VOLTAGE_THRESHHOLD;
+		pdm_status->low_voltage_dc_dc = battery_current_mAmps >= 0;
 		Board_UART_Println("Low Voltage Systems Check");
 		Board_UART_Println("");
 	}

@@ -49,6 +49,8 @@ void Board_LEDs_Init(void) {
 	Chip_GPIO_Init(LPC_GPIO);
 	Chip_GPIO_WriteDirBit(LPC_GPIO, LED0, true);
 	Chip_GPIO_WriteDirBit(LPC_GPIO, LED1, true);
+	Chip_GPIO_WriteDirBit(LPC_GPIO, LED2, true);
+	Chip_GPIO_WriteDirBit(LPC_GPIO, LED3, true);
 }
 
 void Board_UART_Init(uint32_t baudrate) {
@@ -149,7 +151,7 @@ void Board_I2C_Init(void){
 	NVIC_EnableIRQ(I2C0_IRQn);	
 }
 
-void Board_PDM_Status_Update(PDM_STATUS_T *pdm_status, uint8_t *i2c_rx_buffer, bool cs) {
+bool Board_PDM_Status_Update(PDM_STATUS_T *pdm_status, uint8_t *i2c_rx_buffer, bool cs) {
 	int tmp;
 	uint32_t battery_voltage_mVolts, battery_charge_percent;
 	int32_t battery_current_mAmps;
@@ -196,4 +198,6 @@ void Board_PDM_Status_Update(PDM_STATUS_T *pdm_status, uint8_t *i2c_rx_buffer, b
 		Board_UART_Println("Low Voltage Systems Check");
 		Board_UART_Println("");
 	}
+
+	return tmp == 2;
 }

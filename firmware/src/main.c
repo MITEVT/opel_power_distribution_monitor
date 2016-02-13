@@ -171,6 +171,7 @@ int main(void)
 	
 	int tmp;
 	bool pdm_on = true;
+	bool lv_i2c_on, cs_i2c_on, mult_i2c_on = true;
 
 	i2c_tx_buffer[0] = 0x02;
 	tmp = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_MULTIPLEXER_ADDRESS, i2c_tx_buffer, 1);
@@ -202,9 +203,10 @@ int main(void)
 		if (!RingBuffer_IsEmpty(&can_rx_buffer)) {
 			CCAN_MSG_OBJ_T temp_msg;
 			RingBuffer_Pop(&can_rx_buffer, &temp_msg);
-			if(temp_msg.data[3] == 0xF0) {
+			if(temp_msg.data[3] == 0x0F || temp_msg.data[3] == 0x30) {
 				if(pdm_on) {
 					pdm_on = false;
+					Board_LED_Off(LED0);
 				
 					i2c_tx_buffer[0] = 0x01;
 					tmp = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_MULTIPLEXER_ADDRESS, i2c_tx_buffer, 1);	//Open I2C Channel 0
@@ -224,6 +226,7 @@ int main(void)
 			else {
 				if(!pdm_on) {
 					pdm_on = true;
+					Board_LED_On(LED0);
 
 					i2c_tx_buffer[0] = 0x02;
 					tmp = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_MULTIPLEXER_ADDRESS, i2c_tx_buffer, 1);
@@ -245,14 +248,49 @@ int main(void)
 		if(msTicks - lastPrint > 2500){					// 10 times per second
 			lastPrint = msTicks;					// Store the current time, to allow the process to be done in another 1/5 second
 			i2c_tx_buffer[0] = 0x01;
+			
 			tmp = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_MULTIPLEXER_ADDRESS, i2c_tx_buffer, 1);
-			//Board_UART_PrintNum(tmp, 10, true);
-			Board_PDM_Status_Update(&pdm_status, i2c_rx_buffer, true);
+			if(tmp == 2) {
+				if(!mult_i2c_on) {
+					mult_i2c_on = true;
+					Board_LED_On(LED1);
+				}
+			}
+			else {
+				if(mult_i2c_on) {
+					mult_i2c_on = false;
+					Board_LED_Off(LED1);
+				}
+			}
+
+			if(Board_PDM_Status_Update(&pdm_status, i2c_rx_buffer, true)) {
+				if(!cs_i2c_on) {
+					cs_i2c_on = true;
+					Board_LED_On(LED2);
+				}
+			}
+			else {
+				if(cs_i2c_on) {
+					cs_i2c_on = false;
+					Board_LED_Off(LED2)
+				}
+			}
 	
 			i2c_tx_buffer[0] = 0x02;
 			tmp = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_MULTIPLEXER_ADDRESS, i2c_tx_buffer, 1);
 			//Board_UART_PrintNum(tmp, 10, true);
-			Board_PDM_Status_Update(&pdm_status, i2c_rx_buffer, false);
+			if(Board_PDM_Status_Update(&pdm_status, i2c_rx_buffer, false)) {
+				if(!lv_i2c_on) {
+					lv_i2c_on = true;
+					Board_LED_On(LED3);
+				}
+			}
+			else {
+				if(lv_i2c_on) {
+					cs_i2c_on = false;
+					Board_LED_Off(LED3)
+				}
+			}
 
 			msg_obj.msgobj = 0;
 			msg_obj.mode_id = 0x305;

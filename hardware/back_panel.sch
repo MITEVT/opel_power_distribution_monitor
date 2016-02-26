@@ -35,7 +35,6 @@ LIBS:MITEVT_mcontrollers
 LIBS:MITEVT_OPTO
 LIBS:MITEVT_power
 LIBS:MITEVT_REG
-LIBS:final_outline-cache
 EELAYER 25 0
 EELAYER END
 $Descr A4 11693 8268
@@ -152,54 +151,46 @@ F 3 "" H 5500 1900 60  0000 C CNN
 	1    5500 1900
 	1    0    0    -1  
 $EndComp
-NoConn ~ 5300 1650
 NoConn ~ 5300 2150
 NoConn ~ 5300 2250
 NoConn ~ 5300 2350
 NoConn ~ 5300 2450
 NoConn ~ 5300 2550
 Wire Wire Line
-	5300 1250 5100 1250
+	4950 1250 5300 1250
 Wire Wire Line
-	5100 1250 5100 1350
-Wire Wire Line
-	5100 1350 5300 1350
-Wire Wire Line
-	5300 1450 5100 1450
-Wire Wire Line
-	5100 1450 5100 1550
-Wire Wire Line
-	5100 1550 5300 1550
-Wire Wire Line
-	5300 1750 5100 1750
-Wire Wire Line
-	5100 1750 5100 1850
-Wire Wire Line
-	5100 1850 5300 1850
-Wire Wire Line
-	5300 1950 5100 1950
-Wire Wire Line
-	5100 1950 5100 2050
-Wire Wire Line
-	5100 2050 5300 2050
-Wire Wire Line
-	5100 1300 4950 1300
-Connection ~ 5100 1300
-Wire Wire Line
-	5100 1500 4950 1500
-Connection ~ 5100 1500
-Wire Wire Line
-	5100 1800 4950 1800
-Connection ~ 5100 1800
-Wire Wire Line
-	5100 2000 4950 2000
-Connection ~ 5100 2000
-Text HLabel 4950 1300 0    60   Output ~ 0
+	5100 1950 5300 1950
+Text HLabel 4950 1350 0    60   Output ~ 0
 CS_SENSE+
-Text HLabel 4950 1500 0    60   Output ~ 0
+Text HLabel 4950 1250 0    60   Output ~ 0
 CS_SENSE-
-Text HLabel 4950 1800 0    60   Output ~ 0
+Text HLabel 4950 1650 0    60   Output ~ 0
 LV_SENSE+
-Text HLabel 4950 2000 0    60   Output ~ 0
+Text HLabel 4950 1550 0    60   Output ~ 0
 LV_SENSE-
+Wire Wire Line
+	5250 1250 5250 1750
+Wire Wire Line
+	5250 1750 5300 1750
+Wire Wire Line
+	4950 1350 5300 1350
+Wire Wire Line
+	5200 1350 5200 1850
+Wire Wire Line
+	5200 1850 5300 1850
+Wire Wire Line
+	4950 1550 5300 1550
+Wire Wire Line
+	5100 1550 5100 1950
+NoConn ~ 5300 1450
+Wire Wire Line
+	4950 1650 5300 1650
+Wire Wire Line
+	5050 1650 5050 2050
+Wire Wire Line
+	5050 2050 5300 2050
+Connection ~ 5250 1250
+Connection ~ 5200 1350
+Connection ~ 5100 1550
+Connection ~ 5050 1650
 $EndSCHEMATC

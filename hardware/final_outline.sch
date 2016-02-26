@@ -35,7 +35,6 @@ LIBS:MITEVT_mcontrollers
 LIBS:MITEVT_OPTO
 LIBS:MITEVT_power
 LIBS:MITEVT_REG
-LIBS:final_outline-cache
 EELAYER 25 0
 EELAYER END
 $Descr A4 11693 8268
@@ -58,6 +57,10 @@ F1 "back_panel.sch" 60
 F2 "CANP" O L 7400 3050 60 
 F3 "CANH" B L 7400 3150 60 
 F4 "CANL" B L 7400 3250 60 
+F5 "CS_SENSE+" O R 9250 3700 60 
+F6 "CS_SENSE-" O R 9250 3600 60 
+F7 "LV_SENSE+" O R 9250 3400 60 
+F8 "LV_SENSE-" O R 9250 3300 60 
 $EndSheet
 $Sheet
 S 2300 2700 1300 1800
@@ -98,6 +101,8 @@ F13 "MCU_PROG_N" I L 4500 5000 60
 F14 "CANL" B R 6250 5100 60 
 F15 "CANH" B R 6250 5000 60 
 F16 "CANP" I R 6250 4900 60 
+F17 "SCL" O R 6250 5400 60 
+F18 "SDA" B R 6250 5500 60 
 $EndSheet
 $Sheet
 S 4850 1850 1200 1100
@@ -112,9 +117,7 @@ $EndSheet
 Wire Wire Line
 	6450 2150 6050 2150
 Wire Wire Line
-	4300 2150 4700 2150
-Wire Wire Line
-	4700 2150 4850 2150
+	4300 2150 4850 2150
 Wire Wire Line
 	4300 2000 4300 2150
 Wire Wire Line
@@ -218,9 +221,7 @@ Connection ~ 4700 2150
 Wire Wire Line
 	6800 1450 4700 1450
 Wire Wire Line
-	6800 1450 6800 3050
-Wire Wire Line
-	6800 3050 6800 4900
+	6800 1450 6800 4900
 Wire Wire Line
 	6800 3050 7400 3050
 Wire Wire Line
@@ -268,9 +269,7 @@ $EndComp
 Wire Wire Line
 	3950 2850 3600 2850
 Wire Wire Line
-	3950 2400 3950 2600
-Wire Wire Line
-	3950 2600 3950 2850
+	3950 2400 3950 2850
 Connection ~ 3950 2600
 Wire Wire Line
 	3950 2600 4850 2600
@@ -279,35 +278,17 @@ S 7500 4850 1700 1200
 U 56C046CA
 F0 "I2C Multiplexer and Gas Gauges" 60
 F1 "i2c.sch" 60
+F2 "SDA" B L 7500 5500 60 
+F3 "SCL" I L 7500 5400 60 
+F4 "LV_SENSE-" I R 9200 5700 60 
+F5 "LV_SENSE+" I R 9200 5600 60 
+F6 "CS_SENSE-" I R 9200 5400 60 
+F7 "CS_SENSE+" I R 9200 5300 60 
 $EndSheet
-Text HLabel 6250 5400 0    60   Output ~ 0
-SCL
-Text HLabel 6250 5500 0    60   BiDi ~ 0
-SDA
-Text HLabel 7500 5400 2    60   Input ~ 0
-SCL
-Text HLabel 7500 5500 2    60   BiDi ~ 0
-SDA
 Wire Wire Line
 	7500 5400 6250 5400
 Wire Wire Line
 	7500 5500 6250 5500
-Text HLabel 9200 5300 0    60   Input ~ 0
-CS_SENSE+
-Text HLabel 9200 5400 0    60   Input ~ 0
-CS_SENSE-
-Text HLabel 9200 5600 0    60   Input ~ 0
-LV_SENSE+
-Text HLabel 9200 5700 0    60   Input ~ 0
-LV_SENSE-
-Text HLabel 9250 3300 0    60   Output ~ 0
-LV_SENSE-
-Text HLabel 9250 3400 0    60   Output ~ 0
-LV_SENSE+
-Text HLabel 9250 3600 0    60   Output ~ 0
-CS_SENSE-
-Text HLabel 9250 3700 0    60   Output ~ 0
-CS_SENSE+
 Wire Wire Line
 	9250 3700 9400 3700
 Wire Wire Line

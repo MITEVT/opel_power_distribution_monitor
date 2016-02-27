@@ -97,7 +97,10 @@ int main(void)
 	//---------------
 	// Initialize GPIO and LED as output
 	Board_LEDs_Init();
+	Board_LED_On(LED0);
 	Board_LED_On(LED1);
+	Board_LED_On(LED2);
+	Board_LED_On(LED3);
 
 	//Initialize I2C
 	Board_I2C_Init();
@@ -250,7 +253,7 @@ int main(void)
 			i2c_tx_buffer[0] = 0x01;
 			
 			tmp = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_MULTIPLEXER_ADDRESS, i2c_tx_buffer, 1);
-			if(tmp == 2) {
+			if(tmp != 0) {
 				if(!mult_i2c_on) {
 					mult_i2c_on = true;
 					Board_LED_On(LED1);
@@ -287,7 +290,7 @@ int main(void)
 			}
 			else {
 				if(lv_i2c_on) {
-					cs_i2c_on = false;
+					lv_i2c_on = false;
 					Board_LED_Off(LED3)
 				}
 			}

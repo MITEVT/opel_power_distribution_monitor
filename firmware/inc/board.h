@@ -27,14 +27,14 @@ typedef struct {
 #define LED0_PORT 2
 #define LED0_PIN 5
 
-#define LED1_PORT 2
-#define LED1_PIN 7
+#define LED1_PORT 0
+#define LED1_PIN 6
 
 #define LED2_PORT 0
-#define LED2_PIN 6
+#define LED2_PIN 7
 
-#define LED3_PORT 0
-#define LED3_PIN 7
+#define LED3_PORT 2
+#define LED3_PIN 9
 
 #define UART_RX_PORT 1
 #define UART_RX_PIN 6

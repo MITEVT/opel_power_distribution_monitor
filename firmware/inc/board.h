@@ -77,6 +77,8 @@ void Board_UART_Init(uint32_t baudrate);
 
 void Board_I2C_Init(void);
 
+void Board_I2C_Reset(uint8_t reset_val, uint8_t *i2c_tx_buffer);
+
 /**
  * Update the struct containing the current status of the PDM.
  * 

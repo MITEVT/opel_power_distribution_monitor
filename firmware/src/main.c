@@ -74,7 +74,6 @@ void CAN_error(uint32_t error_info) {
 
 
 
-
 // -------------------------------------------------------------
 // Interrupt Service Routines
 
@@ -211,19 +210,7 @@ int main(void)
 					pdm_on = false;
 					Board_LED_Off(LED0);
 				
-					i2c_tx_buffer[0] = 0x01;
-					tmp = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_MULTIPLEXER_ADDRESS, i2c_tx_buffer, 1);	//Open I2C Channel 0
-	
-					i2c_tx_buffer[0] = 0x01;
-					i2c_tx_buffer[1] = 0x38;
-					tmp = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_SLAVE_ADDRESS, i2c_tx_buffer, 2);		//Put gas gauge 0 to sleep
-
-					i2c_tx_buffer[0] = 0x02;
-					tmp = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_MULTIPLEXER_ADDRESS, i2c_tx_buffer, 1);	//Open 12C Channel 1
-
-					i2c_tx_buffer[0] = 0x01;
-					i2c_tx_buffer[1] = 0x38;
-					tmp = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_SLAVE_ADDRESS, i2c_tx_buffer, 2);		//Put gas gauge 1 to sleep
+					Board_I2C_Reset(0x39, i2c_tx_buffer);
 				}
 			}
 			else {
@@ -231,25 +218,45 @@ int main(void)
 					pdm_on = true;
 					Board_LED_On(LED0);
 
-					i2c_tx_buffer[0] = 0x02;
-					tmp = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_MULTIPLEXER_ADDRESS, i2c_tx_buffer, 1);
-
-					i2c_tx_buffer[0] = 0x01;
-					i2c_tx_buffer[1] = 0xF8;
-					tmp = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_SLAVE_ADDRESS, i2c_tx_buffer, 2);
-
-					i2c_tx_buffer[0] = 0x03;
-					tmp = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_MULTIPLEXER_ADDRESS, i2c_tx_buffer, 1);
-
-					i2c_tx_buffer[0] = 0x01;
-					i2c_tx_buffer[1] = 0xF8;
-					tmp = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_SLAVE_ADDRESS, i2c_tx_buffer, 2);
+					Board_I2C_Reset(0xF8, i2c_tx_buffer);
 				}
 			}
 		}
 
 		if(msTicks - lastPrint > 2500){					// 10 times per second
 			lastPrint = msTicks;					// Store the current time, to allow the process to be done in another 1/5 second
+			
+			
+			i2c_tx_buffer[0] = 0x01;
+			tmp = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_MULTIPLEXER_ADDRESS, i2c_tx_buffer, 1);	//Open I2C Channel 0
+
+			tmp = Chip_I2C_MasterCmdRead(DEFAULT_I2C, I2C_SLAVE_ADDRESS, 0x01, i2c_rx_buffer, 1);
+
+			Board_UART_PrintNum(i2c_rx_buffer[0],16,true);
+			if((uint16_t)i2c_rx_buffer[0] == 0x3C) {
+				if(pdm_on) {
+					Board_I2C_Reset(0xF8, i2c_tx_buffer);
+				}
+				else {
+					Board_I2C_Reset(0x39, i2c_tx_buffer);
+				}
+			}
+	
+			i2c_tx_buffer[0] = 0x02;
+			tmp = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_MULTIPLEXER_ADDRESS, i2c_tx_buffer, 1);	//Open 12C Channel 1
+
+			tmp = Chip_I2C_MasterCmdRead(DEFAULT_I2C, I2C_SLAVE_ADDRESS, 0x01, i2c_rx_buffer, 1);
+
+			Board_UART_PrintNum(i2c_rx_buffer[0],16,true);
+			if((uint16_t)i2c_rx_buffer[0] == 0x3C) {
+				if(pdm_on) {
+					Board_I2C_Reset(0xF8, i2c_tx_buffer);
+				}
+				else {
+					Board_I2C_Reset(0x39, i2c_tx_buffer);
+				}
+			}
+
 			i2c_tx_buffer[0] = 0x01;
 			
 			tmp = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_MULTIPLEXER_ADDRESS, i2c_tx_buffer, 1);
@@ -281,7 +288,7 @@ int main(void)
 	
 			i2c_tx_buffer[0] = 0x02;
 			tmp = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_MULTIPLEXER_ADDRESS, i2c_tx_buffer, 1);
-			//Board_UART_PrintNum(tmp, 10, true);
+
 			if(Board_PDM_Status_Update(&pdm_status, i2c_rx_buffer, false)) {
 				if(!lv_i2c_on) {
 					lv_i2c_on = true;
@@ -300,7 +307,7 @@ int main(void)
 			msg_obj.dlc = 1;
 			msg_obj.data[0] = pdm_status.low_voltage_bus_battery * 0x01 | pdm_status.low_voltage_dc_dc * 0x02 | pdm_status.critical_systems_bus_battery * 0x04 | pdm_status.critical_systems_dc_dc * 0x08 | pdm_on * 0x10;
 			Board_UART_PrintNum(msg_obj.data[0], 2, true);
-			//LPC_CCAN_API->can_transmit(&msg_obj);
+			LPC_CCAN_API->can_transmit(&msg_obj);
 
 		}
 	}

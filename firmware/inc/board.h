@@ -77,6 +77,12 @@ void Board_UART_Init(uint32_t baudrate);
 
 void Board_I2C_Init(void);
 
+/**
+ * Reset both gas gauges by writing a given byte to both control registers.
+ *
+ * @param uint8_t reset_val the byte with which to overwrite the control registers
+ * @param uint8_t *i2c_tx_buffer a pointer to the array to write data through I2C
+ */
 void Board_I2C_Reset(uint8_t reset_val, uint8_t *i2c_tx_buffer);
 
 /**

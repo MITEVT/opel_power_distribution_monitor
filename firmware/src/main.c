@@ -81,8 +81,6 @@ void CAN_error(uint32_t error_info) {
 // -------------------------------------------------------------
 // Main Program Loop
 
-
-
 int main(void)
 {
 
@@ -139,30 +137,11 @@ int main(void)
 
 	*/
 
+	//Set mask to only accept messages from Driver Interface
 	msg_obj.msgobj = 1;
 	msg_obj.mode_id = 0x505;
 	msg_obj.mask = 0xFFF;
 	LPC_CCAN_API->config_rxmsgobj(&msg_obj);
-
-	/* [Tutorial] How do I send a CAN Message?
-
-		There are 32 Message Objects in the CAN Peripherals Message RAM.
-		We need to pick one that isn't setup for receiving messages and use it to send.
-
-		For this exmaple we'll pick 31
-
-		msg_obj.msgobj = 31;
-		msg_obj.mode_id = 0x600; 		// CAN ID of Message to Send
-		msg_obj.dlc = 8; 				// Byte length of CAN Message
-		msg_obj.data[0] = 0xAA; 		// Fill your bytes here
-		msg_obj.data[1] = ..;
-		..
-		msg_obj.data[7] = 0xBB:
-
-		Now its time to send
-		LPC_CCAN_API->can_transmit(&msg_obj);
-
-	*/
 
 	can_error_flag = false;
 	can_error_info = 0;
@@ -175,22 +154,26 @@ int main(void)
 	bool pdm_on = true;
 	bool lv_i2c_on, cs_i2c_on, mult_i2c_on = true;
 
+	//Open I2C Channel 0
 	i2c_tx_buffer[0] = 0x02;
 	tmp = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_MULTIPLEXER_ADDRESS, i2c_tx_buffer, 1);
 	Board_UART_Print("Opened Channel 0: ");
 	Board_UART_PrintNum(tmp, 10, true);
 
+	//Set Gas Gauge 0 to continuous data collection
 	i2c_tx_buffer[0] = 0x01;
 	i2c_tx_buffer[1] = 0xF8;
 	tmp = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_SLAVE_ADDRESS, i2c_tx_buffer, 2);
 	Board_UART_Print("Set I2C0 to continuous data collection: ");
 	Board_UART_PrintNum(tmp, 10, true);
 
+	//Open I2C Channel 1
 	i2c_tx_buffer[0] = 0x03;
 	tmp = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_MULTIPLEXER_ADDRESS, i2c_tx_buffer, 1);
 	Board_UART_Print("Opened Channel 1: ");
 	Board_UART_PrintNum(tmp, 10, true);
 
+	//Set Gas Gauge 1 to continuous data collection
 	i2c_tx_buffer[0] = 0x01;
 	i2c_tx_buffer[1] = 0xF8;
 	tmp = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_SLAVE_ADDRESS, i2c_tx_buffer, 2);
@@ -200,16 +183,15 @@ int main(void)
 	
 
 	while (1) {
-		//Board_PDM_Status_Update(&pdm_status, i2c_tx_buffer);
-
-		if (!RingBuffer_IsEmpty(&can_rx_buffer)) {
+		
+		//Set PDM status based on CAN messages from Driver Interface
+		if (!RingBuffer_IsEmpty(&can_rx_buffer)) {					
 			CCAN_MSG_OBJ_T temp_msg;
 			RingBuffer_Pop(&can_rx_buffer, &temp_msg);
-			if(temp_msg.data[3] == 0x0F || temp_msg.data[3] == 0x30) {
-				if(pdm_on) {
+			if(temp_msg.data[3] == 0x0F || temp_msg.data[3] == 0x30) {	//Test for Driver Interface OFF or SHUTDOWN IMPENDING message				
+				if(pdm_on) {							
 					pdm_on = false;
 					Board_LED_Off(LED0);
-				
 					Board_I2C_Reset(0x39, i2c_tx_buffer);
 				}
 			}
@@ -217,7 +199,6 @@ int main(void)
 				if(!pdm_on) {
 					pdm_on = true;
 					Board_LED_On(LED0);
-
 					Board_I2C_Reset(0xF8, i2c_tx_buffer);
 				}
 			}
@@ -226,14 +207,12 @@ int main(void)
 		if(msTicks - lastPrint > 2500){					// 10 times per second
 			lastPrint = msTicks;					// Store the current time, to allow the process to be done in another 1/5 second
 			
-			
+			//Reset gas gauge 0 if it has been diconnected and then reconnected to power
 			i2c_tx_buffer[0] = 0x01;
 			tmp = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_MULTIPLEXER_ADDRESS, i2c_tx_buffer, 1);	//Open I2C Channel 0
-
-			tmp = Chip_I2C_MasterCmdRead(DEFAULT_I2C, I2C_SLAVE_ADDRESS, 0x01, i2c_rx_buffer, 1);
-
+			tmp = Chip_I2C_MasterCmdRead(DEFAULT_I2C, I2C_SLAVE_ADDRESS, 0x01, i2c_rx_buffer, 1);	
 			Board_UART_PrintNum(i2c_rx_buffer[0],16,true);
-			if((uint16_t)i2c_rx_buffer[0] == 0x3C) {
+			if((uint16_t)i2c_rx_buffer[0] == 0x3C) {						//Test for default values in control register
 				if(pdm_on) {
 					Board_I2C_Reset(0xF8, i2c_tx_buffer);
 				}
@@ -241,14 +220,13 @@ int main(void)
 					Board_I2C_Reset(0x39, i2c_tx_buffer);
 				}
 			}
-	
+			
+			//Reset gas gauge 1 if it has been diconnected and then reconnected to power	
 			i2c_tx_buffer[0] = 0x02;
 			tmp = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_MULTIPLEXER_ADDRESS, i2c_tx_buffer, 1);	//Open 12C Channel 1
-
 			tmp = Chip_I2C_MasterCmdRead(DEFAULT_I2C, I2C_SLAVE_ADDRESS, 0x01, i2c_rx_buffer, 1);
-
 			Board_UART_PrintNum(i2c_rx_buffer[0],16,true);
-			if((uint16_t)i2c_rx_buffer[0] == 0x3C) {
+			if((uint16_t)i2c_rx_buffer[0] == 0x3C) {						//Test for default values in control register
 				if(pdm_on) {
 					Board_I2C_Reset(0xF8, i2c_tx_buffer);
 				}
@@ -257,25 +235,21 @@ int main(void)
 				}
 			}
 
+			/* Update PDM and Debug LED code */
 			i2c_tx_buffer[0] = 0x01;
-			
-			tmp = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_MULTIPLEXER_ADDRESS, i2c_tx_buffer, 1);
-			if(tmp != 0) {
-				if(!mult_i2c_on) {
-					mult_i2c_on = true;
-					Board_LED_On(LED1);
-				}
+			tmp = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_MULTIPLEXER_ADDRESS, i2c_tx_buffer, 1); 	//Attempt to open I2C Channel 0
+			if(tmp != 0 && !mult_i2c_on) {
+				mult_i2c_on = true;								//Update I2C Multiplexer status
+				Board_LED_On(LED1);
 			}
-			else {
-				if(mult_i2c_on) {
-					mult_i2c_on = false;
-					Board_LED_Off(LED1);
-				}
+			else if(tmp == 0 && mult_i2c_on) {
+				mult_i2c_on = false;
+				Board_LED_Off(LED1);
 			}
 
-			if(Board_PDM_Status_Update(&pdm_status, i2c_rx_buffer, true)) {
+			if(Board_PDM_Status_Update(&pdm_status, i2c_rx_buffer, true) && !cs_i2c_on) {		//Attempt to update Critical Systems PDM struct
 				if(!cs_i2c_on) {
-					cs_i2c_on = true;
+					cs_i2c_on = true;							//Update Critical Systems gas gauge status
 					Board_LED_On(LED2);
 				}
 			}
@@ -287,11 +261,11 @@ int main(void)
 			}
 	
 			i2c_tx_buffer[0] = 0x02;
-			tmp = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_MULTIPLEXER_ADDRESS, i2c_tx_buffer, 1);
+			tmp = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_MULTIPLEXER_ADDRESS, i2c_tx_buffer, 1);	//Attempt to open I2C Channel 1
 
-			if(Board_PDM_Status_Update(&pdm_status, i2c_rx_buffer, false)) {
+			if(Board_PDM_Status_Update(&pdm_status, i2c_rx_buffer, false)) {			//Attempt to update Low Voltage PDM struct
 				if(!lv_i2c_on) {
-					lv_i2c_on = true;
+					lv_i2c_on = true;							//Update Low Voltage gas gauge status
 					Board_LED_On(LED3);
 				}
 			}
@@ -302,13 +276,17 @@ int main(void)
 				}
 			}
 
+			/* CAN message code */
 			msg_obj.msgobj = 0;
 			msg_obj.mode_id = 0x305;
 			msg_obj.dlc = 1;
-			msg_obj.data[0] = pdm_status.low_voltage_bus_battery * 0x01 | pdm_status.low_voltage_dc_dc * 0x02 | pdm_status.critical_systems_bus_battery * 0x04 | pdm_status.critical_systems_dc_dc * 0x08 | pdm_on * 0x10;
+			msg_obj.data[0] = pdm_status.low_voltage_bus_battery * 0x01 |				//Transfer data from PMD struct 
+						pdm_status.low_voltage_dc_dc * 0x02 |				//to a 5 bit binary string
+						pdm_status.critical_systems_bus_battery * 0x04 |
+						pdm_status.critical_systems_dc_dc * 0x08 |
+						pdm_on * 0x10;
 			Board_UART_PrintNum(msg_obj.data[0], 2, true);
-			LPC_CCAN_API->can_transmit(&msg_obj);
-
+			LPC_CCAN_API->can_transmit(&msg_obj);							//Send the CAN message
 		}
 	}
 }

@@ -151,6 +151,22 @@ void Board_I2C_Init(void){
 	NVIC_EnableIRQ(I2C0_IRQn);	
 }
 
+void Board_I2C_Reset(uint8_t reset_val, uint8_t *i2c_tx_buffer) {
+	i2c_tx_buffer[0] = 0x01;
+	Chip_I2C_MasterSend(DEFAULT_I2C, I2C_MULTIPLEXER_ADDRESS, i2c_tx_buffer, 1);
+	
+	i2c_tx_buffer[0] = 0x01;
+	i2c_tx_buffer[1] = reset_val;
+	Chip_I2C_MasterSend(DEFAULT_I2C, I2C_SLAVE_ADDRESS, i2c_tx_buffer, 2);
+
+	i2c_tx_buffer[0] = 0x02;
+	Chip_I2C_MasterSend(DEFAULT_I2C, I2C_MULTIPLEXER_ADDRESS, i2c_tx_buffer, 1);
+
+	i2c_tx_buffer[0] = 0x01;
+	i2c_tx_buffer[1] = reset_val;
+	Chip_I2C_MasterSend(DEFAULT_I2C, I2C_SLAVE_ADDRESS, i2c_tx_buffer, 2);
+}
+
 bool Board_PDM_Status_Update(PDM_STATUS_T *pdm_status, uint8_t *i2c_rx_buffer, bool cs) {
 	int tmp;
 	uint32_t battery_voltage_mVolts, battery_charge_percent;

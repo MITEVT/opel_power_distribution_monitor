@@ -27,14 +27,14 @@ typedef struct {
 #define LED0_PORT 2
 #define LED0_PIN 5
 
-#define LED1_PORT 2
-#define LED1_PIN 7
+#define LED1_PORT 0
+#define LED1_PIN 6
 
 #define LED2_PORT 0
-#define LED2_PIN 6
+#define LED2_PIN 7
 
-#define LED3_PORT 0
-#define LED3_PIN 7
+#define LED3_PORT 2
+#define LED3_PIN 9
 
 #define UART_RX_PORT 1
 #define UART_RX_PIN 6
@@ -76,6 +76,8 @@ void Board_LEDs_Init(void);
 void Board_UART_Init(uint32_t baudrate);
 
 void Board_I2C_Init(void);
+
+void Board_I2C_Reset(uint8_t reset_val, uint8_t *i2c_tx_buffer);
 
 /**
  * Update the struct containing the current status of the PDM.

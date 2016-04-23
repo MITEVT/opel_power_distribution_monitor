@@ -1,5 +1,5 @@
 #include "board.h"
-#include "i2c.h"
+#include "pdm_i2c_bus.h"
 
 // -------------------------------------------------------------
 // Board ISRs
@@ -153,22 +153,22 @@ void Board_I2C_Init(void){
 
 void Board_I2C_Reset(uint8_t reset_val, uint8_t *i2c_tx_buffer) {
 	//Open I2C Channel 0
-	i2c_tx_buffer[0] = 0x01;
-	Chip_I2C_MasterSend(DEFAULT_I2C, I2C_MULTIPLEXER_ADDRESS, i2c_tx_buffer, 1);
+	i2c_tx_buffer[0] = I2C_MUX_CHANNEL_0;
+	Chip_I2C_MasterSend(DEFAULT_I2C, I2C_MUX_SLAVE_ADDRESS, i2c_tx_buffer, 1);
 	
 	//Write reset_val to gas gauge 0 control register
-	i2c_tx_buffer[0] = 0x01;
+	i2c_tx_buffer[0] = I2C_GG_CTRL_REG;
 	i2c_tx_buffer[1] = reset_val;
-	Chip_I2C_MasterSend(DEFAULT_I2C, I2C_SLAVE_ADDRESS, i2c_tx_buffer, 2);
+	Chip_I2C_MasterSend(DEFAULT_I2C, I2C_GG_SLAVE_ADDRESS, i2c_tx_buffer, 2);
 
 	//Open I2C Channel 1
-	i2c_tx_buffer[0] = 0x02;
-	Chip_I2C_MasterSend(DEFAULT_I2C, I2C_MULTIPLEXER_ADDRESS, i2c_tx_buffer, 1);
+	i2c_tx_buffer[0] = I2C_MUX_CHANNEL_1;
+	Chip_I2C_MasterSend(DEFAULT_I2C, I2C_MUX_SLAVE_ADDRESS, i2c_tx_buffer, 1);
 	
 	//Write reset_val to gas gauge 1 control register
-	i2c_tx_buffer[0] = 0x01;
+	i2c_tx_buffer[0] = I2C_GG_CTRL_REG;
 	i2c_tx_buffer[1] = reset_val;
-	Chip_I2C_MasterSend(DEFAULT_I2C, I2C_SLAVE_ADDRESS, i2c_tx_buffer, 2);
+	Chip_I2C_MasterSend(DEFAULT_I2C, I2C_GG_SLAVE_ADDRESS, i2c_tx_buffer, 2);
 }
 
 bool Board_PDM_Status_Update(PDM_STATUS_T *pdm_status, uint8_t *i2c_rx_buffer, bool cs) {
@@ -176,25 +176,25 @@ bool Board_PDM_Status_Update(PDM_STATUS_T *pdm_status, uint8_t *i2c_rx_buffer, b
 	uint32_t battery_voltage_mVolts, battery_charge_percent;
 	int32_t battery_current_mAmps;
 
-	tmp = Chip_I2C_MasterCmdRead(DEFAULT_I2C, I2C_SLAVE_ADDRESS, 0x08, i2c_rx_buffer, 2);		//Read raw voltage data from gas gauge
-	battery_voltage_mVolts = ((uint16_t)i2c_rx_buffer[0] << 8) | (uint16_t)i2c_rx_buffer[1];	//Convert two bytes to hex
-	battery_voltage_mVolts = 23600*battery_voltage_mVolts/0xFFFF;					//Convert to milliVolts
+	tmp = Chip_I2C_MasterCmdRead(DEFAULT_I2C, I2C_GG_SLAVE_ADDRESS, I2C_GG_VOLT_REG, i2c_rx_buffer, 2);		//Read raw voltage data from gas gauge
+	battery_voltage_mVolts = ((uint16_t)i2c_rx_buffer[0] << 8) | (uint16_t)i2c_rx_buffer[1];			//Convert two bytes to hex
+	battery_voltage_mVolts = 23600*battery_voltage_mVolts/0xFFFF;							//Convert to milliVolts
 	Board_UART_Print("Voltage Data (mV): ");
 	Board_UART_PrintNum(battery_voltage_mVolts, 10, false);
 	Board_UART_Print(" Length: ");
 	Board_UART_PrintNum(tmp, 10, true);
 
-	tmp = Chip_I2C_MasterCmdRead(DEFAULT_I2C, I2C_SLAVE_ADDRESS, 0x02, i2c_rx_buffer, 2);		
-	battery_charge_percent = ((uint16_t)i2c_rx_buffer[0] << 8) | (uint16_t)i2c_rx_buffer[1];
-	battery_charge_percent = 100*battery_charge_percent/0xFFFF;
+	tmp = Chip_I2C_MasterCmdRead(DEFAULT_I2C, I2C_GG_SLAVE_ADDRESS, I2C_GG_CHRG_REG, i2c_rx_buffer, 2);		//Read raw charge data from gas gauge
+	battery_charge_percent = ((uint16_t)i2c_rx_buffer[0] << 8) | (uint16_t)i2c_rx_buffer[1];			//Convert two bytes to hex
+	battery_charge_percent = 100*battery_charge_percent/0xFFFF;							//Convert to percentage charged
 	Board_UART_Print("Accumulated Charge Data (%): ");
 	Board_UART_PrintNum(battery_charge_percent, 10, false);
 	Board_UART_Print(" Length: ");
 	Board_UART_PrintNum(tmp, 10, true);
 
-	tmp = Chip_I2C_MasterCmdRead(DEFAULT_I2C, I2C_SLAVE_ADDRESS, 0x0E, i2c_rx_buffer, 2);		//Read raw current data from gas gauge
-	battery_current_mAmps = ((uint16_t)i2c_rx_buffer[0] << 8) | (uint16_t)i2c_rx_buffer[1];		//Convert two bytes to hex
-	battery_current_mAmps = 60*(battery_current_mAmps-0x7FFF)*1000/(50*0x7FFF);			//Convert to milliAmps
+	tmp = Chip_I2C_MasterCmdRead(DEFAULT_I2C, I2C_GG_SLAVE_ADDRESS, I2C_GG_CURR_REG, i2c_rx_buffer, 2);		//Read raw current data from gas gauge
+	battery_current_mAmps = ((uint16_t)i2c_rx_buffer[0] << 8) | (uint16_t)i2c_rx_buffer[1];				//Convert two bytes to hex
+	battery_current_mAmps = 60*(battery_current_mAmps-0x7FFF)*1000/(50*0x7FFF);					//Convert to milliAmps
 	Board_UART_Print("Current Data (mA): ");
 	if(battery_current_mAmps < 0) {
 		battery_current_mAmps = battery_current_mAmps * -1;
@@ -207,14 +207,14 @@ bool Board_PDM_Status_Update(PDM_STATUS_T *pdm_status, uint8_t *i2c_rx_buffer, b
 	//Update the correct system struct
 	if(cs) { 
 		//Update the critical systems PDM struct
-		pdm_status->critical_systems_bus_battery = battery_voltage_mVolts < LOW_VOLTAGE_THRESHHOLD;
+		pdm_status->critical_systems_bus_battery = battery_voltage_mVolts < LOW_VOLTAGE_THRESHOLD;
 		pdm_status->critical_systems_dc_dc = battery_current_mAmps >= 0;
 		Board_UART_Println("Critical Systems Check");
 		Board_UART_Println("");
 	}
 	else { 
 		//Update the low voltage systems PDM struct
-		pdm_status->low_voltage_bus_battery = battery_voltage_mVolts < LOW_VOLTAGE_THRESHHOLD;
+		pdm_status->low_voltage_bus_battery = battery_voltage_mVolts < LOW_VOLTAGE_THRESHOLD;
 		pdm_status->low_voltage_dc_dc = battery_current_mAmps >= 0;
 		Board_UART_Println("Low Voltage Systems Check");
 		Board_UART_Println("");

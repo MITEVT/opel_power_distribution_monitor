@@ -2,6 +2,7 @@
 #define I2C_MUX_CHANNEL_0 0x01
 #define I2C_MUX_CHANNEL_1 0x02
 
+
 //I2C Control Register Values
 #define I2C_GG_SLEEP 0x39
 #define I2C_GG_DEFAULT 0x3C

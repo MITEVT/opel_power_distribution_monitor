@@ -45,7 +45,7 @@ typedef struct {
 #define UART_TX_IOCON IOCON_PIO1_7
 
 //PDM
-#define LOW_VOLTAGE_THRESHHOLD 10000
+#define LOW_VOLTAGE_THRESHOLD 10000
 
 // -------------------------------------------------------------
 // Computed Macros

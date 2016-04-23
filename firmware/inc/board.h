@@ -47,11 +47,6 @@ typedef struct {
 //PDM
 #define LOW_VOLTAGE_THRESHHOLD 10000
 
-//I2C
-#define DEFAULT_I2C I2C0
-#define SPEED_100KHZ 100000
-#define I2C_SLAVE_ADDRESS 0x64
-#define I2C_MULTIPLEXER_ADDRESS 0x70
 // -------------------------------------------------------------
 // Computed Macros
 

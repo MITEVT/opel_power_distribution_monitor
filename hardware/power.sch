@@ -1,4 +1,5 @@
 EESchema Schematic File Version 2
+LIBS:opel_pdm-rescue
 LIBS:power
 LIBS:device
 LIBS:transistors

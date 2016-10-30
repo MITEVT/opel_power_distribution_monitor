@@ -154,7 +154,7 @@ int main(void)
 	
 	int tmp;
 	bool pdm_on = true;
-	bool lv_i2c_on, cs_i2c_on, mult_i2c_on = true;
+	bool lv_i2c_on =true, cs_i2c_on = true, mux_i2c_on = true;
 
 	//Board_I2C_Reset(I2C_GG_CONTINUOUS, i2c_tx_buffer);
 
@@ -192,8 +192,9 @@ int main(void)
 		if (!RingBuffer_IsEmpty(&can_rx_buffer)) {					
 			CCAN_MSG_OBJ_T temp_msg;
 			RingBuffer_Pop(&can_rx_buffer, &temp_msg);
-			if(temp_msg.data[3] == ____DI_PACKET__DRIVE_STATUS__SHUTDOWN_IMPENDING ||	//Test for DI OFF or SHUTDOWN IMPENDING message
-					temp_msg.data[3] == ____DI_PACKET__DRIVE_STATUS__OFF) {					
+			//Test for DI OFF or SHUTDOWN IMPENDING message
+			if((temp_msg.data[3] << 8 | temp_msg.data[2]) == ____DI_PACKET__DRIVE_STATUS__SHUTDOWN_IMPENDING ||	
+					(temp_msg.data[3] << 8 | temp_msg.data[2]) == ____DI_PACKET__DRIVE_STATUS__OFF) {	
 				if(pdm_on) {							
 					pdm_on = false;
 					Board_LED_Off(LED0);
@@ -208,90 +209,86 @@ int main(void)
 				}
 			}
 		}
+		
 
-		if(msTicks - lastPrint > 2500){					// 10 times per second
-			lastPrint = msTicks;					// Store the current time, to allow the process to be done in another 1/5 second
-			
-			//Reset gas gauge 0 if it has been diconnected and then reconnected to power
-			i2c_tx_buffer[0] = I2C_MUX_CHANNEL_0;
-			tmp = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_MUX_SLAVE_ADDRESS, i2c_tx_buffer, 1);	//Open I2C Channel 0
-			tmp = Chip_I2C_MasterCmdRead(DEFAULT_I2C, I2C_GG_SLAVE_ADDRESS, I2C_GG_CTRL_REG, i2c_rx_buffer, 1);	
-			Board_UART_PrintNum(i2c_rx_buffer[0],16,true);
-			if((uint16_t)i2c_rx_buffer[0] == I2C_GG_DEFAULT) {						//Test for default values in control register
-				if(pdm_on) {
-					Board_I2C_Reset(I2C_GG_CONTINUOUS, i2c_tx_buffer);
-				}
-				else {
-					Board_I2C_Reset(I2C_GG_SLEEP, i2c_tx_buffer);
-				}
-			}
-			
-			//Reset gas gauge 1 if it has been diconnected and then reconnected to power	
-			i2c_tx_buffer[0] = I2C_MUX_CHANNEL_1;
-			tmp = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_MUX_SLAVE_ADDRESS, i2c_tx_buffer, 1);	//Open 12C Channel 1
-			tmp = Chip_I2C_MasterCmdRead(DEFAULT_I2C, I2C_GG_SLAVE_ADDRESS, I2C_MUX_CHANNEL_0, i2c_rx_buffer, 1);
-			Board_UART_PrintNum(i2c_rx_buffer[0],16,true);
-			if((uint16_t)i2c_rx_buffer[0] == I2C_GG_DEFAULT) {						//Test for default values in control register
-				if(pdm_on) {
-					Board_I2C_Reset(I2C_GG_CONTINUOUS, i2c_tx_buffer);
-				}
-				else {
-					Board_I2C_Reset(I2C_GG_SLEEP, i2c_tx_buffer);
-				}
-			}
-
-			/* Update PDM and Debug LED code */
-			i2c_tx_buffer[0] = I2C_MUX_CHANNEL_0;
-			tmp = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_MUX_SLAVE_ADDRESS, i2c_tx_buffer, 1); 	//Attempt to open I2C Channel 0
-			if(tmp != 0 && !mult_i2c_on) {
-				mult_i2c_on = true;								//Update I2C Multiplexer status
-				Board_LED_On(LED1);
-			}
-			else if(tmp == 0 && mult_i2c_on) {
-				mult_i2c_on = false;
-				Board_LED_Off(LED1);
-			}
-
-			if(Board_PDM_Status_Update(&pdm_status, i2c_rx_buffer, true) && !cs_i2c_on) {		//Attempt to update Critical Systems PDM struct
-				if(!cs_i2c_on) {
-					cs_i2c_on = true;							//Update Critical Systems gas gauge status
-					Board_LED_On(LED2);
-				}
+		//Reset gas gauge 0 if it has been diconnected and then reconnected to power
+		i2c_tx_buffer[0] = I2C_MUX_CHANNEL_0;
+		tmp = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_MUX_SLAVE_ADDRESS, i2c_tx_buffer, 1);	//Open I2C Channel 0
+		tmp = Chip_I2C_MasterCmdRead(DEFAULT_I2C, I2C_GG_SLAVE_ADDRESS, I2C_GG_CTRL_REG, i2c_rx_buffer, 1);	
+		Board_UART_PrintNum(i2c_rx_buffer[0],16,true);
+		if((uint16_t)i2c_rx_buffer[0] == I2C_GG_DEFAULT) {						//Test for default values in control register
+			if(pdm_on) {
+				Board_I2C_Reset(I2C_GG_CONTINUOUS, i2c_tx_buffer);
 			}
 			else {
-				if(cs_i2c_on) {
-					cs_i2c_on = false;
-					Board_LED_Off(LED2)
-				}
+				Board_I2C_Reset(I2C_GG_SLEEP, i2c_tx_buffer);
 			}
+			//Send a heartbeat with a com error
+			Board_PDM_SendHeartbeat(&pdm_status, &msg_obj, pdm_on, true);
+		}
+
+			
+		//Reset gas gauge 1 if it has been diconnected and then reconnected to power	
+		i2c_tx_buffer[0] = I2C_MUX_CHANNEL_1;
+		tmp = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_MUX_SLAVE_ADDRESS, i2c_tx_buffer, 1);	//Open 12C Channel 1
+		tmp = Chip_I2C_MasterCmdRead(DEFAULT_I2C, I2C_GG_SLAVE_ADDRESS, I2C_MUX_CHANNEL_0, i2c_rx_buffer, 1);
+		Board_UART_PrintNum(i2c_rx_buffer[0],16,true);
+		if((uint16_t)i2c_rx_buffer[0] == I2C_GG_DEFAULT) {						//Test for default values in control register
+			if(pdm_on) {
+				Board_I2C_Reset(I2C_GG_CONTINUOUS, i2c_tx_buffer);
+			}
+			else {
+				Board_I2C_Reset(I2C_GG_SLEEP, i2c_tx_buffer);
+			}
+			//Send a heartbeat with a com error
+			Board_PDM_SendHeartbeat(&pdm_status, &msg_obj, pdm_on, true);
+		}
+
+		/* Update PDM and Debug LED code */
+		i2c_tx_buffer[0] = I2C_MUX_CHANNEL_0;
+		tmp = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_MUX_SLAVE_ADDRESS, i2c_tx_buffer, 1); 	//Attempt to open I2C Channel 0
+		if(tmp != 0 && !mux_i2c_on) {
+			mux_i2c_on = true;								//Update I2C Multiplexer status
+			Board_LED_On(LED1);
+		}
+		else if(tmp == 0 && mux_i2c_on) {
+			mux_i2c_on = false;
+			Board_LED_Off(LED1);
+		}
+
+		if(Board_PDM_Status_Update(&pdm_status, i2c_rx_buffer, true) && !cs_i2c_on) {		//Attempt to update Critical Systems PDM struct
+			if(!cs_i2c_on) {
+				cs_i2c_on = true;							//Update Critical Systems gas gauge status
+				Board_LED_On(LED2);
+			}
+		}
+		else {
+			if(cs_i2c_on) {
+				cs_i2c_on = false;
+				Board_LED_Off(LED2)
+			}
+		}
 	
-			i2c_tx_buffer[0] = I2C_MUX_CHANNEL_1;
-			tmp = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_MUX_SLAVE_ADDRESS, i2c_tx_buffer, 1);	//Attempt to open I2C Channel 1
+		i2c_tx_buffer[0] = I2C_MUX_CHANNEL_1;
+		tmp = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_MUX_SLAVE_ADDRESS, i2c_tx_buffer, 1);	//Attempt to open I2C Channel 1
 
-			if(Board_PDM_Status_Update(&pdm_status, i2c_rx_buffer, false)) {			//Attempt to update Low Voltage PDM struct
-				if(!lv_i2c_on) {
-					lv_i2c_on = true;							//Update Low Voltage gas gauge status
-					Board_LED_On(LED3);
-				}
+		if(Board_PDM_Status_Update(&pdm_status, i2c_rx_buffer, false)) {			//Attempt to update Low Voltage PDM struct
+			if(!lv_i2c_on) {
+				lv_i2c_on = true;							//Update Low Voltage gas gauge status
+				Board_LED_On(LED3);
 			}
-			else {
-				if(lv_i2c_on) {
-					lv_i2c_on = false;
-					Board_LED_Off(LED3)
-				}
+		}
+		else {
+			if(lv_i2c_on) {
+				lv_i2c_on = false;
+				Board_LED_Off(LED3)
 			}
+		}
 
-			/* CAN message code */
-			msg_obj.msgobj = 0;
-			msg_obj.mode_id = PDM_PACKET__id;
-			msg_obj.dlc = 1;
-			msg_obj.data[0] = (uint8_t) pdm_status.low_voltage_bus_battery |				//Transfer data from PMD struct 
-						(uint8_t) pdm_status.low_voltage_dc_dc << 1 |				//to 5 bit binary
-						(uint8_t) pdm_status.critical_systems_bus_battery << 2 |
-						(uint8_t) pdm_status.critical_systems_dc_dc << 3 |
-						(uint8_t) pdm_on << 4;
-			Board_UART_PrintNum(msg_obj.data[0], 2, true);
-			LPC_CCAN_API->can_transmit(&msg_obj);							//Send the CAN message
+		if(msTicks - lastPrint > 2500){				// 10 times per second
+			lastPrint = msTicks;				// Store the current time, to allow the process to be done in another 1/5 seconds
+			
+			Board_PDM_SendHeartbeat(&pdm_status, &msg_obj, pdm_on, !(lv_i2c_on && cs_i2c_on && mux_i2c_on));
 		}
 	}
 }

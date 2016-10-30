@@ -1,5 +1,6 @@
 #include "board.h"
 #include "pdm_i2c_bus.h"
+#include "can_spec_constants.h"
 
 // -------------------------------------------------------------
 // Board ISRs
@@ -169,6 +170,25 @@ void Board_I2C_Reset(uint8_t reset_val, uint8_t *i2c_tx_buffer) {
 	i2c_tx_buffer[0] = I2C_GG_CTRL_REG;
 	i2c_tx_buffer[1] = reset_val;
 	Chip_I2C_MasterSend(DEFAULT_I2C, I2C_GG_SLAVE_ADDRESS, i2c_tx_buffer, 2);
+}
+
+void Board_CAN_SendHeartbeat(PDM_STATUS_T *pdm_status, CCAN_MSG_OBJ_T *msg_obj, bool pdm_on, bool comm_err) {
+	/* CAN message code */
+	msg_obj->msgobj = 0;
+	msg_obj->mode_id = PDM_PACKET__id;
+	msg_obj->dlc = 1;
+
+	uint32_t data = (pdm_status->low_voltage_bus_battery & 0x1) |				//Transfer data from PDM struct 
+			((pdm_status->low_voltage_dc_dc & 0x1) << 1) |				//to 5 bit binary
+			((pdm_status->critical_systems_bus_battery & 0x1) << 2) |
+			((pdm_status->critical_systems_dc_dc & 0x1) << 3) |
+			(comm_err << 4) |
+			(pdm_on << 5);
+	uint32_t error = 0x1 & (data > 1);
+
+	msg_obj->data[0] = ((error << 6) | data);
+	Board_UART_PrintNum(msg_obj->data[0], 2, true);
+	LPC_CCAN_API->can_transmit(msg_obj);							//Send the CAN message
 }
 
 bool Board_PDM_Status_Update(PDM_STATUS_T *pdm_status, uint8_t *i2c_rx_buffer, bool cs) {

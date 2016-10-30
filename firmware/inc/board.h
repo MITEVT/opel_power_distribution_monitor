@@ -80,6 +80,8 @@ void Board_I2C_Init(void);
  */
 void Board_I2C_Reset(uint8_t reset_val, uint8_t *i2c_tx_buffer);
 
+void Board_CAN_SendHeartbeat(PDM_STATUS_T *pdm_status, CCAN_MSG_OBJ_T *msg_obj, bool pdm_on, bool comm_err);
+
 /**
  * Update the struct containing the current status of the PDM.
  * 

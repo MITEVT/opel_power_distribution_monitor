@@ -178,12 +178,14 @@ void Board_CAN_SendHeartbeat(PDM_STATUS_T *pdm_status, CCAN_MSG_OBJ_T *msg_obj, 
 	msg_obj->mode_id = PDM_PACKET__id;
 	msg_obj->dlc = 1;
 
+	bool total_error = pdm_status->mux_on && pdm_status->cs_on && pdm_status->lv_on || comm_err;
+
 	uint32_t data = (pdm_status->low_voltage_bus_battery & 0x1) |				//Transfer data from PDM struct 
 			((pdm_status->low_voltage_dc_dc & 0x1) << 1) |				//to 5 bit binary
 			((pdm_status->critical_systems_bus_battery & 0x1) << 2) |
 			((pdm_status->critical_systems_dc_dc & 0x1) << 3) |
-			(comm_err << 4) |
-			(pdm_status->pdm_on << 5);
+			(pdm_status->pdm_on << 4) |
+			(total_error << 5);
 	uint32_t error = 0x1 & (data > 1);
 
 	msg_obj->data[0] = ((error << 6) | data);

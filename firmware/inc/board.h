@@ -19,6 +19,10 @@ typedef struct {
 	bool low_voltage_dc_dc;
 	bool critical_systems_bus_battery;
 	bool critical_systems_dc_dc;
+	bool pdm_on;
+	bool mux_on;
+	bool lv_on;
+	bool cs_on;
 } PDM_STATUS_T;
 
 // -------------------------------------------------------------
@@ -46,9 +50,13 @@ typedef struct {
 
 //PDM
 #define LOW_VOLTAGE_THRESHOLD 10000
+#define ONE_TICK 1000
+#define FREQ_OFFSET 1
+
 
 // -------------------------------------------------------------
 // Computed Macros
+#define FREQ_THRESHOLD ONE_TICK/(PDM_PACKET__freq + FREQ_OFFSET)
 
 #define LED0 LED0_PORT, LED0_PIN
 #define LED1 LED1_PORT, LED1_PIN
@@ -75,12 +83,20 @@ void Board_I2C_Init(void);
 /**
  * Reset both gas gauges by writing a given byte to both control registers.
  *
- * @param uint8_t reset_val the byte with which to overwrite the control registers
- * @param uint8_t *i2c_tx_buffer a pointer to the array to write data through I2C
+ * @param reset_val the byte with which to overwrite the control registers
+ * @param i2c_tx_buffer a pointer to the array to write data through I2C
  */
 void Board_I2C_Reset(uint8_t reset_val, uint8_t *i2c_tx_buffer);
 
-void Board_CAN_SendHeartbeat(PDM_STATUS_T *pdm_status, CCAN_MSG_OBJ_T *msg_obj, bool pdm_on, bool comm_err);
+/**
+ * Send a PDM heartbeat over CAN as defined in the CAN spec.
+ *
+ * @param *pdm_status a pointer to the current status of the PDM
+ * @param *msg_obj a pointer to the CAN message object
+ */
+void Board_CAN_SendHeartbeat(PDM_STATUS_T *pdm_status, CCAN_MSG_OBJ_T *msg_obj, bool comm_err);
+
+void Board_PDM_Status_Debug(PDM_STATUS_T *pdm_status, bool mux_i2c, bool cs_i2c, bool lv_i2c);
 
 /**
  * Update the struct containing the current status of the PDM.

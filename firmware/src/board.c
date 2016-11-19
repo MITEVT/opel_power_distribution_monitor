@@ -172,7 +172,7 @@ void Board_I2C_Reset(uint8_t reset_val, uint8_t *i2c_tx_buffer) {
 	Chip_I2C_MasterSend(DEFAULT_I2C, I2C_GG_SLAVE_ADDRESS, i2c_tx_buffer, 2);
 }
 
-void Board_CAN_SendHeartbeat(PDM_STATUS_T *pdm_status, CCAN_MSG_OBJ_T *msg_obj, bool pdm_on, bool comm_err) {
+void Board_CAN_SendHeartbeat(PDM_STATUS_T *pdm_status, CCAN_MSG_OBJ_T *msg_obj, bool comm_err) {
 	/* CAN message code */
 	msg_obj->msgobj = 0;
 	msg_obj->mode_id = PDM_PACKET__id;
@@ -183,12 +183,41 @@ void Board_CAN_SendHeartbeat(PDM_STATUS_T *pdm_status, CCAN_MSG_OBJ_T *msg_obj, 
 			((pdm_status->critical_systems_bus_battery & 0x1) << 2) |
 			((pdm_status->critical_systems_dc_dc & 0x1) << 3) |
 			(comm_err << 4) |
-			(pdm_on << 5);
+			(pdm_status->pdm_on << 5);
 	uint32_t error = 0x1 & (data > 1);
 
 	msg_obj->data[0] = ((error << 6) | data);
 	Board_UART_PrintNum(msg_obj->data[0], 2, true);
 	LPC_CCAN_API->can_transmit(msg_obj);							//Send the CAN message
+}
+
+void Board_PDM_Status_Debug(PDM_STATUS_T *pdm_status, bool mux_i2c, bool cs_i2c, bool lv_i2c) {
+	if(mux_i2c && !(pdm_status->mux_on)) {
+		pdm_status->mux_on = true;								//Update I2C Multiplexer status
+		Board_LED_On(LED1);
+	}
+	else if(!mux_i2c && pdm_status->mux_on) {
+		pdm_status->mux_on = false;
+		Board_LED_Off(LED1);
+	}
+
+	if(cs_i2c && !(pdm_status->cs_on)) {		//Attempt to update Critical Systems PDM struct	
+		pdm_status->cs_on = true;							//Update Critical Systems gas gauge status
+		Board_LED_On(LED2);
+	}
+	else if(!cs_i2c && pdm_status->cs_on) {
+		pdm_status->cs_on = false;
+		Board_LED_Off(LED2);
+	}
+
+	if(lv_i2c && !(pdm_status->lv_on)) {			//Attempt to update Low Voltage PDM struct
+		pdm_status->lv_on = true;							//Update Low Voltage gas gauge status
+		Board_LED_On(LED3);
+	}
+	else if(!lv_i2c && pdm_status->lv_on){
+		pdm_status->lv_on = false;
+		Board_LED_Off(LED3);
+	}	
 }
 
 bool Board_PDM_Status_Update(PDM_STATUS_T *pdm_status, uint8_t *i2c_rx_buffer, bool cs) {

@@ -7,17 +7,17 @@
 
 /**
  * SysTick Timer Interrupt Handler. Counts milliseconds since start
- */
+ *//*
 void SysTick_Handler(void) {
 	msTicks++;
-}
+}*/
 
 /**
  * CCAN Interrupt Handler. Calls the isr() API located in the CCAN ROM
- */
+ *//*
 void CAN_IRQHandler(void) {
 	LPC_CCAN_API->isr();
-}
+}*/
 
 /**
  * @brief	I2C Interrupt Handler
@@ -34,7 +34,7 @@ void I2C_IRQHandler(void) {
 // -------------------------------------------------------------
 // Public Functions and Members
 
-const uint32_t OscRateIn = 0;
+//const uint32_t OscRateIn = 0;
 
 int8_t Board_SysTick_Init(void) {
 	msTicks = 0;

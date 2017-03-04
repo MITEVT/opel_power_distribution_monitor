@@ -1,268 +1,150 @@
-#include "board.h"
-#include "pdm_i2c_bus.h"
-#include "can_spec_constants.h"
+#include "chip.h"
+#include "util.h"
+#include <string.h>
+#include "can.h"
+#include <stdlib.h>
 
-// -------------------------------------------------------------
-// Macro Definitions
+/*****************************************************************************
+ * Private types/enumerations/variables
+ ****************************************************************************/
 
-#define CCAN_BAUD_RATE 500000 					// Desired CAN Baud Rate
-#define UART_BAUD_RATE 57600 					// Desired UART Baud Rate
+#define LED_PORT 0
+#define LED_PIN 7
 
-#define BUFFER_SIZE 8
+#define UART_RX_BUFFER_SIZE 8
 
-// -------------------------------------------------------------
-// Static Variable Declaration
+const uint32_t OscRateIn = 12000000;
 
-extern volatile uint32_t msTicks;
 
-static uint32_t lastPrint;
+volatile uint32_t msTicks;
 
-static CCAN_MSG_OBJ_T msg_obj; 					// Message Object data structure for manipulating CAN messages
-static RINGBUFF_T can_rx_buffer;				// Ring Buffer for storing received CAN messages
-static CCAN_MSG_OBJ_T _rx_buffer[BUFFER_SIZE]; 	// Underlying array used in ring buffer
+CCAN_MSG_OBJ_T rx_msg;
+static char str[100];
+static char uart_rx_buf[UART_RX_BUFFER_SIZE];
 
-static char str[100];							// Used for composing UART messages
-static uint8_t uart_rx_buffer[BUFFER_SIZE]; 	// UART received message buffer
+#define DEBUG_ENABLE
 
-static bool can_error_flag;
-static uint32_t can_error_info;
+#ifdef DEBUG_ENABLE
+    #define DEBUG_Print(str) Chip_UART_SendBlocking(LPC_USART, str, strlen(str))
+    #define DEBUG_Write(str, count) Chip_UART_SendBlocking(LPC_USART, str, count)
+#else
+    #define DEBUG_Print(str)
+    #define DEBUG_Write(str, count) 
+#endif
 
-static uint8_t i2c_tx_buffer[20];
-static uint8_t i2c_rx_buffer[20];
+/*****************************************************************************
+ * Private functions
+ ****************************************************************************/
 
-// -------------------------------------------------------------
-// Helper Functions
-
-/**
- * Delay the processor for a given number of milliseconds
- * @param ms Number of milliseconds to delay
- */
-void _delay(uint32_t ms) {
-	uint32_t curTicks = msTicks;
-	while ((msTicks - curTicks) < ms);
+void SysTick_Handler(void) {
+    msTicks++;
 }
 
-// -------------------------------------------------------------
-// CAN Driver Callback Functions
+static void Print_Buffer(uint8_t* buff, uint8_t buff_size) {
+    Chip_UART_SendBlocking(LPC_USART, "0x", 2);
+    uint8_t i;
+    for(i = 0; i < buff_size; i++) {
+        itoa(buff[i], str, 16);
+        if(buff[i] < 16) {
+            Chip_UART_SendBlocking(LPC_USART, "0", 1);
+        }
+        Chip_UART_SendBlocking(LPC_USART, str, 2);
+    }
+}
 
-/*	CAN receive callback */
-/*	Function is executed by the Callback handler after
-    a CAN message has been received */
-void CAN_rx(uint8_t msg_obj_num) {
-	// LED_On();
-	/* Determine which CAN message has been received */
-	msg_obj.msgobj = msg_obj_num;
-	/* Now load up the msg_obj structure with the CAN message */
-	LPC_CCAN_API->can_receive(&msg_obj);
-	if (msg_obj_num == 1) {
-		RingBuffer_Insert(&can_rx_buffer, &msg_obj);
+
+int main(void) {
+    SystemCoreClockUpdate();
+    
+    uint32_t reset_can_peripheral_time;
+    const uint32_t can_error_delay = 5000;
+    bool reset_can_peripheral = false;
+    
+    if (SysTick_Config (SystemCoreClock / 1000)) {
+        //Error
+        while(1);
+    }
+    
+    Chip_IOCON_PinMuxSet(LPC_IOCON, IOCON_PIO1_6, (IOCON_FUNC1 | IOCON_MODE_INACT)); /* RXD */
+    Chip_IOCON_PinMuxSet(LPC_IOCON, IOCON_PIO1_7, (IOCON_FUNC1 | IOCON_MODE_INACT)); /* TXD */
+    
+    Chip_UART_Init(LPC_USART);
+    Chip_UART_SetBaud(LPC_USART, 57600);
+    Chip_UART_ConfigData(LPC_USART, (UART_LCR_WLEN8 | UART_LCR_SBS_1BIT | UART_LCR_PARITY_DIS));
+    Chip_UART_SetupFIFOS(LPC_USART, (UART_FCR_FIFO_EN | UART_FCR_TRG_LEV2));
+    Chip_UART_TXEnable(LPC_USART);
+    
+    Board_UART_Println("Started up");
+    
+    CAN_Init(500000);
+    
+    uint32_t ret;
+    uint32_t last_msg_time = msTicks;
+	uint8_t data[1];
+    data[0] = 0b0000000; // start off sending no error
+    
+    while (1) {
+        uint8_t count;
+        
+            // transmit a message!
+            // cycle through all combination of errors
+      /*      if(data[0] == 0b1111111) {
+                data[0] = 0b0000000;
+            } else {
+                data[0]++;
+            }*/
+	if (last_msg_time < msTicks - 200) {
+		CAN_Transmit(0x305, data, 1);
+//		Board_UART_Print("Sending CAN message: ");
+//		Board_UART_PrintNum(data[0],2,true);
 	}
-}
+            // TODO RESET AFTER TRANSMIT ERRORS
 
-/*	CAN transmit callback */
-/*	Function is executed by the Callback handler after
-    a CAN message has been transmitted */
-void CAN_tx(uint8_t msg_obj_num) {
-	msg_obj_num = msg_obj_num;
-}
+        if(reset_can_peripheral && msTicks > reset_can_peripheral_time) {
+		Board_UART_Println("Attempting to reset CAN peripheral...");
+		CAN_ResetPeripheral();
+		CAN_Init(500000);
+		Board_UART_Println("Reset CAN peripheral.");
+		reset_can_peripheral = false;
+        }
+        
+//	if (msTicks - last_msg_time > 100){ // 10Hz transmission rate
+            // recieve message if there is a message
+		ret = CAN_Receive(&rx_msg);
+		if(ret == NO_RX_CAN_MESSAGE) {
+//			Board_UART_Println("No CAN message received...");
+		} else if(ret == NO_CAN_ERROR) {
+			Board_UART_Print("Recieved data ");
+		        Print_Buffer(rx_msg.data, rx_msg.dlc);
+		        Board_UART_Print(" from ");
+		        Board_UART_PrintNum(rx_msg.mode_id,16,true);
+		} else {
+			Board_UART_Print("CAN Error: ");
+		        Board_UART_PrintNum(ret, 2,true);
 
-/*	CAN error callback */
-/*	Function is executed by the Callback handler after
-    an error has occurred on the CAN bus */
-void CAN_error(uint32_t error_info) {
-	can_error_info = error_info;
-	can_error_flag = true;
-}
-
-
-
-// -------------------------------------------------------------
-// Interrupt Service Routines
-
-
-// -------------------------------------------------------------
-// Main Program Loop
-
-int main(void)
-{
-
-	//---------------
-	// Initialize SysTick Timer to generate millisecond count
-	if (Board_SysTick_Init()) {
-		// Unrecoverable Error. Hang.
-		while(1);
-	}
-
-	//---------------
-	// Initialize GPIO and LED as output
-	Board_LEDs_Init();
-	Board_LED_On(LED0);
-	Board_LED_On(LED1);
-	Board_LED_On(LED2);
-	Board_LED_On(LED3);
-
-	//Initialize I2C
-	Board_I2C_Init();
-
-	//---------------
-	// Initialize UART Communication
-	Board_UART_Init(UART_BAUD_RATE);
-	Board_UART_Println("Started up");
-
-	//---------------
-	// Initialize CAN  and CAN Ring Buffer
-
-	RingBuffer_Init(&can_rx_buffer, _rx_buffer, sizeof(CCAN_MSG_OBJ_T), BUFFER_SIZE);
-	RingBuffer_Flush(&can_rx_buffer);
-
-	Board_CAN_Init(CCAN_BAUD_RATE, CAN_rx, CAN_tx, CAN_error);
-
-	// For your convenience.
-	// typedef struct CCAN_MSG_OBJ {
-	// 	uint32_t  mode_id;
-	// 	uint32_t  mask;
-	// 	uint8_t   data[8];
-	// 	uint8_t   dlc;
-	// 	uint8_t   msgobj;
-	// } CCAN_MSG_OBJ_T;
-
-	/* [Tutorial] How do filters work?
-
-		Incoming ID & Mask == Mode_ID for msgobj to accept message
-
-		Incoming ID : 0xabc
-		Mask: 		  0xF0F &
-		            -----------
-		              0xa0c
-
-		mode_id == 0xa0c for msgobj to accept message
-
-	*/
-
-	//Set mask to only accept messages from Driver Interface
-	msg_obj.msgobj = 1;
-	msg_obj.mode_id = DI_PACKET__id;
-	msg_obj.mask = 0x555;
-	LPC_CCAN_API->config_rxmsgobj(&msg_obj);
-
-	can_error_flag = false;
-	can_error_info = 0;
-	
-	lastPrint = msTicks;	
-
-	PDM_STATUS_T pdm_status;
-	
-	int tmp;
-	bool lv_i2c = true, cs_i2c = true, mux_i2c = true;
-
-	//Board_I2C_Reset(I2C_GG_CONTINUOUS, i2c_tx_buffer);
-
-	//Open I2C Channel 0
-	i2c_tx_buffer[0] = I2C_MUX_CHANNEL_0;
-	tmp = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_MUX_SLAVE_ADDRESS, i2c_tx_buffer, 1);
-	Board_UART_Print("Opened Channel 0: ");
-	Board_UART_PrintNum(tmp, 10, true);
-
-	//Set Gas Gauge 0 to continuous data collection
-	i2c_tx_buffer[0] = I2C_GG_CTRL_REG;
-	i2c_tx_buffer[1] = I2C_GG_CONTINUOUS;
-	tmp = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_GG_SLAVE_ADDRESS, i2c_tx_buffer, 2);
-	Board_UART_Print("Set I2C0 to continuous data collection: ");
-	Board_UART_PrintNum(tmp, 10, true);
-
-	//Open I2C Channel 1
-	i2c_tx_buffer[0] = I2C_MUX_CHANNEL_1;
-	tmp = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_MUX_SLAVE_ADDRESS, i2c_tx_buffer, 1);
-	Board_UART_Print("Opened Channel 1: ");
-	Board_UART_PrintNum(tmp, 10, true);
-
-	//Set Gas Gauge 1 to continuous data collection
-	i2c_tx_buffer[0] = I2C_GG_CTRL_REG;
-	i2c_tx_buffer[1] = I2C_GG_CONTINUOUS;
-	tmp = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_GG_SLAVE_ADDRESS, i2c_tx_buffer, 2);
-	Board_UART_Print("Set I2C1 to continuous data collection: ");
-	Board_UART_PrintNum(tmp, 10, true);
-
-	
-
-	while (1) {
-		
-		//Set PDM status based on CAN messages from Driver Interface
-		if (!RingBuffer_IsEmpty(&can_rx_buffer)) {					
-			CCAN_MSG_OBJ_T temp_msg;
-			RingBuffer_Pop(&can_rx_buffer, &temp_msg);
-			//Test for DI OFF or SHUTDOWN IMPENDING message
-			if((temp_msg.data[3] << 8 | temp_msg.data[2]) == ____DI_PACKET__DRIVE_STATUS__SHUTDOWN_IMPENDING ||	
-					(temp_msg.data[3] << 8 | temp_msg.data[2]) == ____DI_PACKET__DRIVE_STATUS__OFF) {	
-				if(pdm_status.pdm_on) {							
-					pdm_status.pdm_on = false;
-					Board_LED_Off(LED0);
-					Board_I2C_Reset(I2C_GG_SLEEP, i2c_tx_buffer);
-				}
-			}
-			else {
-				if(!(pdm_status.pdm_on)) {
-					pdm_status.pdm_on = true;
-					Board_LED_On(LED0);
-					Board_I2C_Reset(I2C_GG_CONTINUOUS, i2c_tx_buffer);
-				}
-			}
+		        Board_UART_Print("Will attempt to reset peripheral in ");
+		        Board_UART_PrintNum(can_error_delay/1000,10,false);
+		        Board_UART_Println(" seconds.");
+		        reset_can_peripheral = true;
+		        reset_can_peripheral_time = msTicks + can_error_delay;
 		}
-		
-
-		//Reset gas gauge 0 if it has been diconnected and then reconnected to power
-		i2c_tx_buffer[0] = I2C_MUX_CHANNEL_0;
-		tmp = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_MUX_SLAVE_ADDRESS, i2c_tx_buffer, 1);	//Open I2C Channel 0
-		tmp = Chip_I2C_MasterCmdRead(DEFAULT_I2C, I2C_GG_SLAVE_ADDRESS, I2C_GG_CTRL_REG, i2c_rx_buffer, 1);	
-		Board_UART_PrintNum(i2c_rx_buffer[0],16,true);
-		if((uint16_t)i2c_rx_buffer[0] == I2C_GG_DEFAULT) {					//Test for default values in control register
-			if(pdm_status.pdm_on) {
-				Board_I2C_Reset(I2C_GG_CONTINUOUS, i2c_tx_buffer);
-			}
-			else {
-				Board_I2C_Reset(I2C_GG_SLEEP, i2c_tx_buffer);
-			}
-			//Send a heartbeat with a com error
-			Board_CAN_SendHeartbeat(&pdm_status, &msg_obj, true);
-		}
-
-			
-		//Reset gas gauge 1 if it has been diconnected and then reconnected to power	
-		i2c_tx_buffer[0] = I2C_MUX_CHANNEL_1;
-		tmp = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_MUX_SLAVE_ADDRESS, i2c_tx_buffer, 1);	//Open 12C Channel 1
-		tmp = Chip_I2C_MasterCmdRead(DEFAULT_I2C, I2C_GG_SLAVE_ADDRESS, I2C_MUX_CHANNEL_0, i2c_rx_buffer, 1);
-		Board_UART_PrintNum(i2c_rx_buffer[0],16,true);
-		if((uint16_t)i2c_rx_buffer[0] == I2C_GG_DEFAULT) {					//Test for default values in control register
-			if(pdm_status.pdm_on) {
-				Board_I2C_Reset(I2C_GG_CONTINUOUS, i2c_tx_buffer);
-			}
-			else {
-				Board_I2C_Reset(I2C_GG_SLEEP, i2c_tx_buffer);
-			}
-			//Send a heartbeat with a com error
-			Board_CAN_SendHeartbeat(&pdm_status, &msg_obj, true);
-		}
-
-
-		/* Update PDM and Debug LED code */
-
-		//Attempt to open I2C Channel 0
-		i2c_tx_buffer[0] = I2C_MUX_CHANNEL_0;
-		mux_i2c = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_MUX_SLAVE_ADDRESS, i2c_tx_buffer, 1);	
-		//Attempt to update Critical Systems PDM Struct
-		cs_i2c = Board_PDM_Status_Update(&pdm_status, i2c_rx_buffer, true);			
-		//Attempt to open I2C Channel 1
-		i2c_tx_buffer[0] = I2C_MUX_CHANNEL_1;
-		mux_i2c = Chip_I2C_MasterSend(DEFAULT_I2C, I2C_MUX_SLAVE_ADDRESS, i2c_tx_buffer, 1);	
-		//Attempt to update Low Voltage PDM struct
-		lv_i2c = Board_PDM_Status_Update(&pdm_status, i2c_rx_buffer, false);			
-		//Run debug logic and update state
-		Board_PDM_Status_Debug(&pdm_status, mux_i2c, cs_i2c, lv_i2c);
-
-		if(msTicks - lastPrint > FREQ_THRESHOLD){				// 10 times per second
-			lastPrint = msTicks;				// Store the current time, to allow the process to be done in another 1/10 seconds
-			
-			Board_CAN_SendHeartbeat(&pdm_status, &msg_obj, false);
-		}
-	}
+    //    }
+        
+        if ((count = Chip_UART_Read(LPC_USART, uart_rx_buf, UART_RX_BUFFER_SIZE)) != 0) {
+            switch (uart_rx_buf[0]) {
+            case 'a':
+                Board_UART_Println("Sending CAN with ID: 0x600");
+                data[0] = 0xAA;
+                ret = CAN_Transmit(0x600, data, 1);
+                if(ret != NO_CAN_ERROR) {
+                    Board_UART_Print("CAN Error: ");
+                    Board_UART_PrintNum(ret,2,true);
+                }
+                break;
+            default:
+               // Board_UART_Print("Invalid Command");
+                break;
+            }
+        }
+    }
 }
